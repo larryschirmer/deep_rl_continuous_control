@@ -1,4 +1,8 @@
 {
   "python.pythonPath": "/anaconda3/envs/continuous_control/bin/python",
-  "python.formatting.provider": "yapf"
+  "python.formatting.provider": "autopep8",
+  "python.linting.pylintArgs": [
+    "--errors-only",
+    "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*, time.*"
+  ]
 }
