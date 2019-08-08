@@ -20,17 +20,8 @@ class ActorCritic(nn.Module):
         y = torch.tanh(self.shared_linear1(y))
         y = torch.tanh(self.shared_linear2(y))
 
-        actor0 = torch.tanh(self.actor_linear(y))
-        actor1 = torch.tanh(self.actor_linear(y))
-        actor2 = torch.tanh(self.actor_linear(y))
-        actor3 = torch.tanh(self.actor_linear(y))
+        actor = self.actor_linear(y)
 
         c = F.relu(self.critic_linear1(y.detach()))
         critic = torch.tanh(self.critic_linear2(c))
-        return [actor0, actor1, actor2, actor3], critic
-
-
-def loss_fn(preds, r):
-    # pred is output from neural network
-    # r is return (sum of rewards to end of episode)
-    return -torch.sum(r * torch.log(preds))  # element-wise multipliy, then sum
+        return actor, critic
