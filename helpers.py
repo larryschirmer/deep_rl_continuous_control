@@ -78,7 +78,7 @@ def worker(model, params, train=True):     # reset the environment
     highest_score = 0
     for epoch in range(params['epochs']):
         values, actions, rewards, final_score = run_episode(
-            model, params, train)
+            model, optimizers, params, train)
 
         if train and final_score >= highest_score:
             highest_score = final_score
@@ -100,7 +100,7 @@ def worker(model, params, train=True):     # reset the environment
                     epoch, loss, average_score, highest_score))
 
 
-def run_episode(model, params, train):
+def run_episode(model, optimizers, params, train):
 
     env_info = params['env'].reset(train_mode=train)[params['brain_name']]
     state_ = env_info.vector_observations[0]        # get the current state
@@ -155,6 +155,10 @@ def run_episode(model, params, train):
 
         rewards.append(reward)
 
+        if train and step_count % params['step_update'] == 0:
+            update_params(optimizers, values, actions,
+                          rewards, params, mid_update=True)
+
     return values, actions, rewards, sum(rewards)
 
 
@@ -169,49 +173,61 @@ def update_params(optimizers, values, actions, rewards, params, mid_update=False
     values2 = [v[2] for v in values]
     values3 = [v[3] for v in values]
 
-    rewards = torch.Tensor(rewards).view(-1)
-    actions0 = torch.stack(actions0).view(-1)
-    actions1 = torch.stack(actions1).view(-1)
-    actions2 = torch.stack(actions2).view(-1)
-    actions3 = torch.stack(actions3).view(-1)
-    values0 = torch.stack(values0).view(-1)
-    values1 = torch.stack(values1).view(-1)
-    values2 = torch.stack(values2).view(-1)
-    values3 = torch.stack(values3).view(-1)
+    rewards = torch.Tensor(rewards).flip(dims=(0,)).view(-1)
+    actions0 = torch.stack(actions0).flip(dims=(0,)).view(-1)
+    actions1 = torch.stack(actions1).flip(dims=(0,)).view(-1)
+    actions2 = torch.stack(actions2).flip(dims=(0,)).view(-1)
+    actions3 = torch.stack(actions3).flip(dims=(0,)).view(-1)
+    values0 = torch.stack(values0).flip(dims=(0,)).view(-1)
+    values1 = torch.stack(values1).flip(dims=(0,)).view(-1)
+    values2 = torch.stack(values2).flip(dims=(0,)).view(-1)
+    values3 = torch.stack(values3).flip(dims=(0,)).view(-1)
+
+    if mid_update:
+        rewards = rewards[-params['step_update']:]
+        actions0 = actions0[-params['step_update']:]
+        actions1 = actions1[-params['step_update']:]
+        actions2 = actions2[-params['step_update']:]
+        actions3 = actions3[-params['step_update']:]
+        values0 = values0[-params['step_update']:]
+        values1 = values1[-params['step_update']:]
+        values2 = values2[-params['step_update']:]
+        values3 = values3[-params['step_update']:]
+
     Returns = []
     total_return = torch.Tensor([0])
 
     for reward_index in range(len(rewards)):
         total_return = rewards[reward_index] + total_return * params['gamma']
         Returns.append(total_return)
-
+    
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    actor_loss0 = -1*actions0 * (Returns - values0.detach())
-    actor_loss1 = -1*actions1 * (Returns - values1.detach())
-    actor_loss2 = -1*actions2 * (Returns - values2.detach())
-    actor_loss3 = -1*actions3 * (Returns - values3.detach())
+    actor_loss0 = -1*torch.log(torch.abs(actions0)) * (Returns - values0.detach())
+    actor_loss1 = -1*torch.log(torch.abs(actions1)) * (Returns - values1.detach())
+    actor_loss2 = -1*torch.log(torch.abs(actions2)) * (Returns - values2.detach())
+    actor_loss3 = -1*torch.log(torch.abs(actions3)) * (Returns - values3.detach())
 
     critic_loss0 = torch.pow(values0 - Returns, 2)
     critic_loss1 = torch.pow(values1 - Returns, 2)
     critic_loss2 = torch.pow(values2 - Returns, 2)
     critic_loss3 = torch.pow(values3 - Returns, 2)
 
-    loss0 = actor_loss0.mean() + params['clc']*critic_loss0.mean()
-    loss1 = actor_loss1.mean() + params['clc']*critic_loss1.mean()
-    loss2 = actor_loss2.mean() + params['clc']*critic_loss2.mean()
-    loss3 = actor_loss3.mean() + params['clc']*critic_loss3.mean()
+    loss0 = actor_loss0.sum() + params['clc']*critic_loss0.mean()
+    loss1 = actor_loss1.sum() + params['clc']*critic_loss1.mean()
+    loss2 = actor_loss2.sum() + params['clc']*critic_loss2.mean()
+    loss3 = actor_loss3.sum() + params['clc']*critic_loss3.mean()
 
     optimizers[0].zero_grad()
     optimizers[1].zero_grad()
     optimizers[2].zero_grad()
     optimizers[3].zero_grad()
 
-    loss0.backward()
-    loss1.backward()
-    loss2.backward()
-    loss3.backward()
+    loss0.backward(retain_graph=True)
+    loss1.backward(retain_graph=True)
+    loss2.backward(retain_graph=True)
+    loss3.backward(retain_graph=True)
 
     optimizers[0].step()
     optimizers[1].step()
