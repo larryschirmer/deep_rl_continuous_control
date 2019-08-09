@@ -10,8 +10,7 @@ from helpers import plot_losses, plot_scores, save_model, worker
 # hyperparameters
 lr = 0.001
 gamma = 0.99
-clc = 0.8
-step_update = 1000
+clc = 0.1
 
 input_dim = 33
 shared_hidden0 = 1024
@@ -49,7 +48,6 @@ params = {
     'env': env,
     'brain_name': brain_name,
     'epochs': epochs,
-    'step_update': step_update,
     'lr': lr,
     'gamma': gamma,
     'clc': clc,

@@ -155,14 +155,10 @@ def run_episode(model, optimizers, params, train):
 
         rewards.append(reward)
 
-        if train and step_count % params['step_update'] == 0:
-            update_params(optimizers, values, actions,
-                          rewards, params, mid_update=True)
-
     return values, actions, rewards, sum(rewards)
 
 
-def update_params(optimizers, values, actions, rewards, params, mid_update=False):
+def update_params(optimizers, values, actions, rewards, params):
     actions0 = [a[0] for a in actions]
     actions1 = [a[1] for a in actions]
     actions2 = [a[2] for a in actions]
@@ -182,17 +178,6 @@ def update_params(optimizers, values, actions, rewards, params, mid_update=False
     values1 = torch.stack(values1).flip(dims=(0,)).view(-1)
     values2 = torch.stack(values2).flip(dims=(0,)).view(-1)
     values3 = torch.stack(values3).flip(dims=(0,)).view(-1)
-
-    if mid_update:
-        rewards = rewards[-params['step_update']:]
-        actions0 = actions0[-params['step_update']:]
-        actions1 = actions1[-params['step_update']:]
-        actions2 = actions2[-params['step_update']:]
-        actions3 = actions3[-params['step_update']:]
-        values0 = values0[-params['step_update']:]
-        values1 = values1[-params['step_update']:]
-        values2 = values2[-params['step_update']:]
-        values3 = values3[-params['step_update']:]
 
     Returns = []
     total_return = torch.Tensor([0])
@@ -224,10 +209,10 @@ def update_params(optimizers, values, actions, rewards, params, mid_update=False
     optimizers[2].zero_grad()
     optimizers[3].zero_grad()
 
-    loss0.backward(retain_graph=True)
-    loss1.backward(retain_graph=True)
-    loss2.backward(retain_graph=True)
-    loss3.backward(retain_graph=True)
+    loss0.backward()
+    loss1.backward()
+    loss2.backward()
+    loss3.backward()
 
     optimizers[0].step()
     optimizers[1].step()
