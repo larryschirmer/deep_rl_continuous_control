@@ -8,17 +8,17 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-lr = 0.001
-gamma = 0.99
+lr = 0.0001
+gamma = 0.999
 clc = 0.1
 
 input_dim = 33
-shared_hidden0 = 1024
-shared_hidden1 = 512
-shared_hidden2 = 256
-actor_hidden = 128
-critic_hidden = 128
-output_dim_actor = 2
+shared_hidden0 = 128
+shared_hidden1 = 256
+shared_hidden2 = 128
+actor_hidden = 62
+critic_hidden = 62
+output_dim_actor = 1
 output_dim_critic = 1
 
 model0 = ActorCritic(
@@ -38,7 +38,7 @@ brain_name = env.brain_names[0]
 
 # train model
 
-epochs = 500
+epochs = 250
 losses = []
 actor_losses = []
 critic_losses = []
