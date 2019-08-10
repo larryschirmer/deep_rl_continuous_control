@@ -22,8 +22,9 @@ class ActorCritic(nn.Module):
         y = torch.relu(self.shared_linear2(y))
 
         a = torch.relu(self.actor_linear0(y))
-        actor = self.actor_linear1(a)
+        actor_mean = torch.tanh(self.actor_linear1(a))
+        actor_std = torch.relu(self.actor_linear1(a)) + 0.001
 
         c = F.relu(self.critic_linear1(y.detach()))
         critic = torch.tanh(self.critic_linear2(c))
-        return actor, critic
+        return actor_mean, actor_std, critic
