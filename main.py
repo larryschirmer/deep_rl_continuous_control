@@ -8,9 +8,12 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-lr = 0.00001
+epochs = 1000
+lr = 0.0001
 gamma = 0.999
 clc = 0.1
+start_epsilon = 0.45
+end_epsilon = 0.001
 
 input_dim = 33
 shared_hidden0 = 128
@@ -18,17 +21,27 @@ shared_hidden1 = 256
 shared_hidden2 = 128
 actor_hidden = 62
 critic_hidden = 62
-output_dim_actor = 1
+output_dim_actor = 2
 output_dim_critic = 1
 
-model0 = ActorCritic(
-    input_dim, shared_hidden0, shared_hidden1, shared_hidden2, critic_hidden, actor_hidden, output_dim_actor, output_dim_critic)
-model1 = ActorCritic(
-    input_dim, shared_hidden0, shared_hidden1, shared_hidden2, critic_hidden, actor_hidden, output_dim_actor, output_dim_critic)
-model2 = ActorCritic(
-    input_dim, shared_hidden0, shared_hidden1, shared_hidden2, critic_hidden, actor_hidden, output_dim_actor, output_dim_critic)
-model3 = ActorCritic(
-    input_dim, shared_hidden0, shared_hidden1, shared_hidden2, critic_hidden, actor_hidden, output_dim_actor, output_dim_critic)
+model_params = {
+    'start_epsilon': start_epsilon,
+    'end_epsilon': end_epsilon,
+    'epochs': epochs,
+    'input_dim': input_dim,
+    'shared_hidden0': shared_hidden0,
+    'shared_hidden1': shared_hidden1,
+    'shared_hidden2': shared_hidden2,
+    'critic_hidden': critic_hidden,
+    'actor_hidden': actor_hidden,
+    'output_dim_actor': output_dim_actor,
+    'output_dim_critic': output_dim_critic
+}
+
+model0 = ActorCritic(model_params)
+model1 = ActorCritic(model_params)
+model2 = ActorCritic(model_params)
+model3 = ActorCritic(model_params)
 
 model = [model0, model1, model2, model3]
 
@@ -38,7 +51,6 @@ brain_name = env.brain_names[0]
 
 # train model
 
-epochs = 1000
 losses = []
 actor_losses = []
 critic_losses = []

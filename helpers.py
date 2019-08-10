@@ -77,8 +77,8 @@ def worker(model, params, train=True):     # reset the environment
 
     highest_score = 0
     for epoch in range(params['epochs']):
-        values, actions, rewards, final_score = run_episode(
-            model, optimizers, params, train)
+        values, logprobs, rewards, final_score = run_episode(
+            model, optimizers, params, epoch, train)
 
         if train and final_score >= highest_score:
             highest_score = final_score
@@ -86,7 +86,7 @@ def worker(model, params, train=True):     # reset the environment
 
         if train:
             loss, actor_loss, critic_loss = update_params(
-                optimizers, values, actions, rewards, params)
+                optimizers, values, logprobs, rewards, params)
 
             params['losses'].append(loss.item())
             params['scores'].append(final_score)
@@ -100,14 +100,14 @@ def worker(model, params, train=True):     # reset the environment
                     epoch, loss, average_score, highest_score))
 
 
-def run_episode(model, optimizers, params, train):
+def run_episode(model, optimizers, params, epoch, train):
 
     env_info = params['env'].reset(train_mode=train)[params['brain_name']]
     state_ = env_info.vector_observations[0]        # get the current state
     state = torch.from_numpy(state_).float()
     score = np.zeros(1)                            # initialize the score
 
-    values, actions, rewards = [], [], []
+    values, logprobs, rewards = [], [], []
     done = False
 
     loss, actor_loss, critic_loss = (
@@ -116,30 +116,22 @@ def run_episode(model, optimizers, params, train):
     step_count = 0
     while (done == False):
         step_count += 1
-        policies0_mean, policies0_std, value0 = model[0](state)
-        policies1_mean, policies1_std, value1 = model[1](state)
-        policies2_mean, policies2_std, value2 = model[2](state)
-        policies3_mean, policies3_std, value3 = model[3](state)
+        policies0_dist, value0 = model[0](state, epoch)
+        policies1_dist, value1 = model[1](state, epoch)
+        policies2_dist, value2 = model[2](state, epoch)
+        policies3_dist, value3 = model[3](state, epoch)
 
-        action_dist0 = torch.distributions.Normal(
-            policies0_mean, policies0_std)
-        action_dist1 = torch.distributions.Normal(
-            policies1_mean, policies1_std)
-        action_dist2 = torch.distributions.Normal(
-            policies2_mean, policies2_std)
-        action_dist3 = torch.distributions.Normal(
-            policies3_mean, policies3_std)
-        action0 = action_dist0.sample()
-        action1 = action_dist1.sample()
-        action2 = action_dist2.sample()
-        action3 = action_dist3.sample()
-        entropy0 = action_dist0.entropy()
-        entropy1 = action_dist1.entropy()
-        entropy2 = action_dist2.entropy()
-        entropy3 = action_dist3.entropy()
+        action0 = policies0_dist.sample()
+        action1 = policies1_dist.sample()
+        action2 = policies2_dist.sample()
+        action3 = policies3_dist.sample()
+        logprob0 = policies0_dist.log_prob(action0.detach())
+        logprob1 = policies1_dist.log_prob(action1.detach())
+        logprob2 = policies2_dist.log_prob(action2.detach())
+        logprob3 = policies3_dist.log_prob(action3.detach())
 
         values.append([value0, value1, value2, value3])
-        actions.append([entropy0, entropy1, entropy2, entropy3])
+        logprobs.append([logprob0, logprob1, logprob2, logprob3])
 
         action_list = np.array([action0.detach().numpy(), action1.detach(
         ).numpy(), action2.detach().numpy(), action3.detach().numpy()])
@@ -155,7 +147,7 @@ def run_episode(model, optimizers, params, train):
         state = torch.from_numpy(state_).float()
         rewards.append(reward)
 
-    return values, actions, rewards, sum(rewards)
+    return values, logprobs, rewards, sum(rewards)
 
 
 def update_params(optimizers, values, actions, rewards, params):
@@ -183,7 +175,7 @@ def update_params(optimizers, values, actions, rewards, params):
     total_return = torch.Tensor([0])
 
     for reward_index in range(len(rewards)):
-        total_return = rewards[reward_index] + total_return * params['gamma']
+        total_return = rewards[reward_index] # + total_return * params['gamma']
         Returns.append(total_return)
 
     Returns = torch.stack(Returns).view(-1)
@@ -199,10 +191,10 @@ def update_params(optimizers, values, actions, rewards, params):
     critic_loss2 = torch.pow(values2 - Returns, 2)
     critic_loss3 = torch.pow(values3 - Returns, 2)
 
-    loss0 = actor_loss0.mean() + params['clc']*critic_loss0.mean()
-    loss1 = actor_loss1.mean() + params['clc']*critic_loss1.mean()
-    loss2 = actor_loss2.mean() + params['clc']*critic_loss2.mean()
-    loss3 = actor_loss3.mean() + params['clc']*critic_loss3.mean()
+    loss0 = actor_loss0.sum() + params['clc']*critic_loss0.sum()
+    loss1 = actor_loss1.sum() + params['clc']*critic_loss1.sum()
+    loss2 = actor_loss2.sum() + params['clc']*critic_loss2.sum()
+    loss3 = actor_loss3.sum() + params['clc']*critic_loss3.sum()
 
     optimizers[0].zero_grad()
     optimizers[1].zero_grad()

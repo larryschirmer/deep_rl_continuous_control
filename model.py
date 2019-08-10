@@ -2,29 +2,39 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+torch.manual_seed(0)
+
 
 class ActorCritic(nn.Module):
-    def __init__(self, input_dim, shared_hidden0, shared_hidden1, shared_hidden2, critic_hidden, actor_hidden, output_dim_actor, output_dim_critic):
+    def __init__(self, params):
         super(ActorCritic, self).__init__()
-        self.shared_linear0 = nn.Linear(input_dim, shared_hidden0)
-        self.shared_linear1 = nn.Linear(shared_hidden0, shared_hidden1)
-        self.shared_linear2 = nn.Linear(shared_hidden1, shared_hidden2)
+        self.start_epsilon = params['start_epsilon']
+        self.end_epsilon = params['end_epsilon']
+        self.epochs = params['epochs']
+        self.shared_linear0 = nn.Linear(params['input_dim'], params['shared_hidden0'])
+        self.shared_linear1 = nn.Linear(params['shared_hidden0'], params['shared_hidden1'])
+        self.shared_linear2 = nn.Linear(params['shared_hidden1'], params['shared_hidden2'])
 
-        self.actor_linear0 = nn.Linear(shared_hidden2, actor_hidden)
-        self.actor_linear1 = nn.Linear(actor_hidden, output_dim_actor)
+        self.actor_linear0 = nn.Linear(params['shared_hidden2'], params['actor_hidden'])
+        self.actor_linear1 = nn.Linear(params['actor_hidden'], params['output_dim_actor'])
 
-        self.critic_linear1 = nn.Linear(shared_hidden2, critic_hidden)
-        self.critic_linear2 = nn.Linear(critic_hidden, output_dim_critic)
+        self.critic_linear1 = nn.Linear(params['shared_hidden2'], params['critic_hidden'])
+        self.critic_linear2 = nn.Linear(params['critic_hidden'], params['output_dim_critic'])
 
-    def forward(self, x):
+    def forward(self, x, epoch):
+        epsilon = (self.end_epsilon - self.start_epsilon) / (epochs - 0) * epoch + start_epsilon
+
         y = torch.relu(self.shared_linear0(x))
         y = torch.relu(self.shared_linear1(y))
         y = torch.relu(self.shared_linear2(y))
 
         a = torch.relu(self.actor_linear0(y))
-        actor_mean = torch.tanh(self.actor_linear1(a))
-        actor_std = torch.relu(self.actor_linear1(a)) + 0.001
+        actor = self.actor_linear1(a)
+
+        actor_mean = torch.tanh(actor[0])
+        actor_std = torch.clamp(actor[1], min=epsilon, max=start_epsilon)
+        action_dist = torch.distributions.Normal(actor_mean, actor_std)
 
         c = F.relu(self.critic_linear1(y.detach()))
         critic = torch.tanh(self.critic_linear2(c))
-        return actor_mean, actor_std, critic
+        return action_dist, critic
