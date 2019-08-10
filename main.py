@@ -8,7 +8,7 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-lr = 0.0001
+lr = 0.00001
 gamma = 0.999
 clc = 0.1
 
@@ -38,7 +38,7 @@ brain_name = env.brain_names[0]
 
 # train model
 
-epochs = 250
+epochs = 1000
 losses = []
 actor_losses = []
 critic_losses = []
