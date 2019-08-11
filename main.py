@@ -12,7 +12,7 @@ epochs = 1000
 lr = 0.0001
 gamma = 0.999
 clc = 0.1
-start_epsilon = 0.45
+start_epsilon = 0.75
 end_epsilon = 0.001
 
 input_dim = 33

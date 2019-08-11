@@ -121,14 +121,14 @@ def run_episode(model, optimizers, params, epoch, train):
         policies2_dist, value2 = model[2](state, epoch)
         policies3_dist, value3 = model[3](state, epoch)
 
-        action0 = policies0_dist.sample()
-        action1 = policies1_dist.sample()
-        action2 = policies2_dist.sample()
-        action3 = policies3_dist.sample()
-        logprob0 = policies0_dist.log_prob(action0.detach())
-        logprob1 = policies1_dist.log_prob(action1.detach())
-        logprob2 = policies2_dist.log_prob(action2.detach())
-        logprob3 = policies3_dist.log_prob(action3.detach())
+        action0 = torch.clamp(policies0_dist.rsample(), min=-1, max=1)
+        action1 = torch.clamp(policies1_dist.rsample(), min=-1, max=1)
+        action2 = torch.clamp(policies2_dist.rsample(), min=-1, max=1)
+        action3 = torch.clamp(policies3_dist.rsample(), min=-1, max=1)
+        logprob0 = policies0_dist.log_prob(action0)
+        logprob1 = policies1_dist.log_prob(action1)
+        logprob2 = policies2_dist.log_prob(action2)
+        logprob3 = policies3_dist.log_prob(action3)
 
         values.append([value0, value1, value2, value3])
         logprobs.append([logprob0, logprob1, logprob2, logprob3])
@@ -150,11 +150,11 @@ def run_episode(model, optimizers, params, epoch, train):
     return values, logprobs, rewards, sum(rewards)
 
 
-def update_params(optimizers, values, actions, rewards, params):
-    actions0 = [a[0] for a in actions]
-    actions1 = [a[1] for a in actions]
-    actions2 = [a[2] for a in actions]
-    actions3 = [a[3] for a in actions]
+def update_params(optimizers, values, logprobs, rewards, params):
+    logprob0 = [a[0] for a in logprobs]
+    logprob1 = [a[1] for a in logprobs]
+    logprob2 = [a[2] for a in logprobs]
+    logprob3 = [a[3] for a in logprobs]
 
     values0 = [v[0] for v in values]
     values1 = [v[1] for v in values]
@@ -162,10 +162,10 @@ def update_params(optimizers, values, actions, rewards, params):
     values3 = [v[3] for v in values]
 
     rewards = torch.Tensor(rewards).flip(dims=(0,)).view(-1)
-    actions0 = torch.stack(actions0).flip(dims=(0,)).view(-1)
-    actions1 = torch.stack(actions1).flip(dims=(0,)).view(-1)
-    actions2 = torch.stack(actions2).flip(dims=(0,)).view(-1)
-    actions3 = torch.stack(actions3).flip(dims=(0,)).view(-1)
+    logprob0 = torch.stack(logprob0).flip(dims=(0,)).view(-1)
+    logprob1 = torch.stack(logprob1).flip(dims=(0,)).view(-1)
+    logprob2 = torch.stack(logprob2).flip(dims=(0,)).view(-1)
+    logprob3 = torch.stack(logprob3).flip(dims=(0,)).view(-1)
     values0 = torch.stack(values0).flip(dims=(0,)).view(-1)
     values1 = torch.stack(values1).flip(dims=(0,)).view(-1)
     values2 = torch.stack(values2).flip(dims=(0,)).view(-1)
@@ -175,16 +175,16 @@ def update_params(optimizers, values, actions, rewards, params):
     total_return = torch.Tensor([0])
 
     for reward_index in range(len(rewards)):
-        total_return = rewards[reward_index] # + total_return * params['gamma']
+        total_return = rewards[reward_index] + total_return * params['gamma']
         Returns.append(total_return)
 
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    actor_loss0 = -1*actions0 * (Returns - values0.detach())
-    actor_loss1 = -1*actions1 * (Returns - values1.detach())
-    actor_loss2 = -1*actions2 * (Returns - values2.detach())
-    actor_loss3 = -1*actions3 * (Returns - values3.detach())
+    actor_loss0 = -1*logprob0 * (Returns - values0.detach())
+    actor_loss1 = -1*logprob1 * (Returns - values1.detach())
+    actor_loss2 = -1*logprob2 * (Returns - values2.detach())
+    actor_loss3 = -1*logprob3 * (Returns - values3.detach())
 
     critic_loss0 = torch.pow(values0 - Returns, 2)
     critic_loss1 = torch.pow(values1 - Returns, 2)

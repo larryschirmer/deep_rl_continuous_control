@@ -22,7 +22,7 @@ class ActorCritic(nn.Module):
         self.critic_linear2 = nn.Linear(params['critic_hidden'], params['output_dim_critic'])
 
     def forward(self, x, epoch):
-        epsilon = (self.end_epsilon - self.start_epsilon) / (epochs - 0) * epoch + start_epsilon
+        epsilon = (self.end_epsilon - self.start_epsilon) / (self.epochs - 0) * epoch + self.start_epsilon
 
         y = torch.relu(self.shared_linear0(x))
         y = torch.relu(self.shared_linear1(y))
@@ -32,7 +32,7 @@ class ActorCritic(nn.Module):
         actor = self.actor_linear1(a)
 
         actor_mean = torch.tanh(actor[0])
-        actor_std = torch.clamp(actor[1], min=epsilon, max=start_epsilon)
+        actor_std = torch.clamp(actor[1], min=epsilon, max=self.start_epsilon)
         action_dist = torch.distributions.Normal(actor_mean, actor_std)
 
         c = F.relu(self.critic_linear1(y.detach()))
