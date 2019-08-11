@@ -8,12 +8,12 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-epochs = 1000
+epochs = 2000
 lr = 0.0001
 gamma = 0.999
 clc = 0.1
-start_epsilon = 0.75
-end_epsilon = 0.001
+start_epsilon = 0.8
+end_epsilon = 0.2
 
 input_dim = 33
 shared_hidden0 = 128

@@ -24,11 +24,11 @@ class ActorCritic(nn.Module):
     def forward(self, x, epoch):
         epsilon = (self.end_epsilon - self.start_epsilon) / (self.epochs - 0) * epoch + self.start_epsilon
 
-        y = torch.relu(self.shared_linear0(x))
-        y = torch.relu(self.shared_linear1(y))
-        y = torch.relu(self.shared_linear2(y))
+        y = torch.tanh(self.shared_linear0(x))
+        y = torch.tanh(self.shared_linear1(y))
+        y = torch.tanh(self.shared_linear2(y))
 
-        a = torch.relu(self.actor_linear0(y))
+        a = torch.tanh(self.actor_linear0(y))
         actor = self.actor_linear1(a)
 
         actor_mean = torch.tanh(actor[0])
