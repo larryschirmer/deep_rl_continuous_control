@@ -8,19 +8,21 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-epochs = 2000
+epochs = 1000
 lr = 0.0001
 gamma = 0.999
 clc = 0.1
 start_epsilon = 0.8
-end_epsilon = 0.2
+end_epsilon = 0.25
+gradient_clip = 50
+reward_leadup = 100
 
 input_dim = 33
-shared_hidden0 = 128
-shared_hidden1 = 256
-shared_hidden2 = 128
-actor_hidden = 62
-critic_hidden = 62
+shared_hidden0 = 256
+shared_hidden1 = 512
+shared_hidden2 = 512
+actor_hidden = 256
+critic_hidden = 2567
 output_dim_actor = 2
 output_dim_critic = 1
 
@@ -63,6 +65,8 @@ params = {
     'lr': lr,
     'gamma': gamma,
     'clc': clc,
+    'gradient_clip': gradient_clip,
+    'reward_leadup': reward_leadup,
     'losses': losses,
     'scores': scores,
     'actor_losses': actor_losses,
@@ -79,6 +83,12 @@ rolling_window = 50
 
 ave_loss = pd.Series(losses).rolling(rolling_window).mean()
 plot_losses(losses, 'ave_loss-{}.png'.format(epochs))
+
+ave_actor_loss = pd.Series(actor_losses).rolling(rolling_window).mean()
+plot_losses(ave_actor_loss, 'ave_actor_loss-{}.png'.format(epochs), plotName="Ave Actor Losses")
+
+ave_critic_loss = pd.Series(critic_losses).rolling(rolling_window).mean()
+plot_losses(ave_critic_loss, 'ave_critic_loss-{}.png'.format(epochs), plotName="Ave Critic Losses")
 
 plot_scores(scores, 'scores-{}.png'.format(epochs))
 

@@ -173,10 +173,17 @@ def update_params(optimizers, values, logprobs, rewards, params):
 
     Returns = []
     total_return = torch.Tensor([0])
+    leadup = 0
 
     for reward_index in range(len(rewards)):
+        if rewards[reward_index].item() > 0:
+            leadup = params['reward_leadup']
+        if leadup == 0:
+            total_return = torch.Tensor([0])
+        
         total_return = rewards[reward_index] + total_return * params['gamma']
         Returns.append(total_return)
+        leadup = leadup - 1 if leadup > 0 else 0
 
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
@@ -191,10 +198,20 @@ def update_params(optimizers, values, logprobs, rewards, params):
     critic_loss2 = torch.pow(values2 - Returns, 2)
     critic_loss3 = torch.pow(values3 - Returns, 2)
 
-    loss0 = actor_loss0.sum() + params['clc']*critic_loss0.sum()
-    loss1 = actor_loss1.sum() + params['clc']*critic_loss1.sum()
-    loss2 = actor_loss2.sum() + params['clc']*critic_loss2.sum()
-    loss3 = actor_loss3.sum() + params['clc']*critic_loss3.sum()
+    actor_loss0 = torch.clamp(actor_loss0.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
+    actor_loss1 = torch.clamp(actor_loss1.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
+    actor_loss2 = torch.clamp(actor_loss2.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
+    actor_loss3 = torch.clamp(actor_loss3.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
+
+    critic_loss0 = critic_loss0.sum()
+    critic_loss1 = critic_loss1.sum()
+    critic_loss2 = critic_loss2.sum()
+    critic_loss3 = critic_loss3.sum()
+
+    loss0 = actor_loss0 + params['clc']*critic_loss0
+    loss1 = actor_loss1 + params['clc']*critic_loss1
+    loss2 = actor_loss2 + params['clc']*critic_loss2
+    loss3 = actor_loss3 + params['clc']*critic_loss3
 
     optimizers[0].zero_grad()
     optimizers[1].zero_grad()
@@ -212,9 +229,7 @@ def update_params(optimizers, values, logprobs, rewards, params):
     optimizers[3].step()
 
     loss_sum = loss0 + loss1 + loss2 + loss3
-    actor_loss_sum = actor_loss0.mean() + actor_loss1.mean() + \
-        actor_loss2.mean() + actor_loss3.mean()
-    critic_loss_sum = critic_loss0.mean() + critic_loss1.mean() + \
-        critic_loss2.mean() + critic_loss3.mean()
+    actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
+    critic_loss_sum = critic_loss0 + critic_loss1 + critic_loss2 + critic_loss3
 
     return loss_sum, actor_loss_sum, critic_loss_sum
