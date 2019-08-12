@@ -9,8 +9,8 @@ from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
 epochs = 1000
-lr = 0.0001
-gamma = 0.999
+lr = 0.000001
+gamma = 0.9
 clc = 0.1
 start_epsilon = 0.8
 end_epsilon = 0.25
@@ -21,8 +21,8 @@ input_dim = 33
 shared_hidden0 = 256
 shared_hidden1 = 512
 shared_hidden2 = 512
-actor_hidden = 256
-critic_hidden = 2567
+actor_hidden = 512
+critic_hidden = 512
 output_dim_actor = 2
 output_dim_critic = 1
 
