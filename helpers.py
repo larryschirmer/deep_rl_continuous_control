@@ -64,7 +64,7 @@ def load_model(model, filename, evalMode=True):
     return model
 
 
-def worker(model, params, train=True):     # reset the environment
+def worker(model, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
     optimizer0 = torch.optim.Adam(
         lr=params['lr'], params=model[0].parameters())
     optimizer1 = torch.optim.Adam(
@@ -76,7 +76,14 @@ def worker(model, params, train=True):     # reset the environment
     optimizers = [optimizer0, optimizer1, optimizer2, optimizer3]
 
     highest_score = 0
+    early_stop_captures = []
+
     for epoch in range(params['epochs']):
+        if train and len(early_stop_captures) >= early_stop_threshold:
+            print("stopped early because net has reached target score")
+            print(early_stop_captures)
+            break
+
         values, logprobs, rewards, final_score = run_episode(
             model, optimizers, params, epoch, train)
 
@@ -98,6 +105,10 @@ def worker(model, params, train=True):     # reset the environment
             if epoch % 10 == 0:
                 print("Epoch: {}, Loss: {:.7f}, Ave Score: {:.4f}, highest: {:.4f}".format(
                     epoch, loss, average_score, highest_score))
+            
+            if average_score >= early_stop_target:
+                early_stop_captures.append(average_score)
+            
 
 
 def run_episode(model, optimizers, params, epoch, train):
