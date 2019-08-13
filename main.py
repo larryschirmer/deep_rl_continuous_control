@@ -9,6 +9,7 @@ from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
 epochs = 300
+annealing_epochs = 300
 lr = 0.000001
 gamma = 0.9
 clc = 0.1
@@ -29,7 +30,7 @@ output_dim_critic = 1
 model_params = {
     'start_epsilon': start_epsilon,
     'end_epsilon': end_epsilon,
-    'epochs': epochs,
+    'epochs': annealing_epochs,
     'input_dim': input_dim,
     'shared_hidden0': shared_hidden0,
     'shared_hidden1': shared_hidden1,
@@ -61,7 +62,7 @@ scores = []
 params = {
     'env': env,
     'brain_name': brain_name,
-    'epochs': epochs,
+    'epochs': epochs + annealing_epochs,
     'lr': lr,
     'gamma': gamma,
     'clc': clc,
