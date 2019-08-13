@@ -8,19 +8,19 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-epochs = 1000
+epochs = 300
 lr = 0.000001
 gamma = 0.9
 clc = 0.1
 start_epsilon = 0.8
 end_epsilon = 0.25
 gradient_clip = 50
-reward_leadup = 100
+reward_leadup = 150
 
 input_dim = 33
 shared_hidden0 = 256
 shared_hidden1 = 512
-shared_hidden2 = 512
+shared_hidden2 = 1024
 actor_hidden = 512
 critic_hidden = 512
 output_dim_actor = 2
