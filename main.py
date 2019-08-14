@@ -8,22 +8,24 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-epochs = 300
-annealing_epochs = 300
-lr = 0.000001
-gamma = 0.9
-clc = 0.1
+epochs = 50
+annealing_epochs = 100
+lr = 0.0001
+gamma = 0.999
+gae = 0.9
+ppo_epsilon = 0.2
+clc = 0.8
 start_epsilon = 0.8
-end_epsilon = 0.25
-gradient_clip = 50
-reward_leadup = 150
+end_epsilon = 0.3
+gradient_clip = 10
+reward_leadup = 300
 
 input_dim = 33
-shared_hidden0 = 256
-shared_hidden1 = 512
-shared_hidden2 = 1024
-actor_hidden = 512
-critic_hidden = 512
+shared_hidden0 = 128
+shared_hidden1 = 256
+shared_hidden2 = 128
+actor_hidden = 62
+critic_hidden = 62
 output_dim_actor = 2
 output_dim_critic = 1
 
@@ -65,6 +67,8 @@ params = {
     'epochs': epochs + annealing_epochs,
     'lr': lr,
     'gamma': gamma,
+    'gae': gae,
+    'ppo_epsilon': ppo_epsilon,
     'clc': clc,
     'gradient_clip': gradient_clip,
     'reward_leadup': reward_leadup,

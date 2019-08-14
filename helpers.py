@@ -161,7 +161,18 @@ def run_episode(model, optimizers, params, epoch, train):
     return values, logprobs, rewards, sum(rewards)
 
 
+prev_logprobs0 = torch.Tensor([0])
+prev_logprobs1 = torch.Tensor([0])
+prev_logprobs2 = torch.Tensor([0])
+prev_logprobs3 = torch.Tensor([0])
+
+
 def update_params(optimizers, values, logprobs, rewards, params):
+    global prev_logprobs0
+    global prev_logprobs1
+    global prev_logprobs2
+    global prev_logprobs3
+
     logprob0 = [a[0] for a in logprobs]
     logprob1 = [a[1] for a in logprobs]
     logprob2 = [a[2] for a in logprobs]
@@ -199,10 +210,36 @@ def update_params(optimizers, values, logprobs, rewards, params):
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    actor_loss0 = -1*logprob0 * (Returns - values0.detach())
-    actor_loss1 = -1*logprob1 * (Returns - values1.detach())
-    actor_loss2 = -1*logprob2 * (Returns - values2.detach())
-    actor_loss3 = -1*logprob3 * (Returns - values3.detach())
+    gae_reduction = torch.Tensor([(1 - params['gae']) * params['gae'] ** i for i in range(len(Returns))])
+
+    ppo_ratio0 = (logprob0 - prev_logprobs0[-1:]).exp()
+    torch.cat((prev_logprobs0[1:], logprob0))
+    advantage0 = Returns - values0.detach()
+    surrogate00 = ppo_ratio0 * advantage0
+    surrogate01 = torch.clamp(ppo_ratio0, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage0
+
+    ppo_ratio1 = (logprob1 - prev_logprobs1[-1:]).exp()
+    torch.cat((prev_logprobs1[1:], logprob1))
+    advantage1 = Returns - values1.detach()
+    surrogate10 = ppo_ratio1 * advantage1
+    surrogate11 = torch.clamp(ppo_ratio1, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage1
+
+    ppo_ratio2 = (logprob2 - prev_logprobs2[-1:]).exp()
+    torch.cat((prev_logprobs2[1:], logprob2))
+    advantage2 = Returns - values2.detach()
+    surrogate20 = ppo_ratio2 * advantage2
+    surrogate21 = torch.clamp(ppo_ratio2, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage2
+
+    ppo_ratio3 = (logprob3 - prev_logprobs3[-1:]).exp()
+    torch.cat((prev_logprobs3[1:], logprob3))
+    advantage3 = Returns - values3.detach()
+    surrogate30 = ppo_ratio3 * advantage3
+    surrogate31 = torch.clamp(ppo_ratio3, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage3
+
+    actor_loss0 = - torch.min(surrogate00, surrogate01) * gae_reduction
+    actor_loss1 = - torch.min(surrogate10, surrogate11) * gae_reduction
+    actor_loss2 = - torch.min(surrogate20, surrogate21) * gae_reduction
+    actor_loss3 = - torch.min(surrogate30, surrogate31) * gae_reduction
 
     critic_loss0 = torch.pow(values0 - Returns, 2)
     critic_loss1 = torch.pow(values1 - Returns, 2)
