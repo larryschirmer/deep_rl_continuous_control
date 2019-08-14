@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 from torch import nn
-from torch.nn import functional as F
 
 torch.manual_seed(0)
 
@@ -41,7 +40,7 @@ class ActorCritic(nn.Module):
         actor_std = torch.clamp(actor[1], min=epsilon, max=self.start_epsilon)
         action_dist = torch.distributions.Normal(actor_mean, actor_std)
 
-        c = F.relu(self.critic_linear0(y.detach()))
-        c = F.relu(self.critic_linear1(c))
-        critic = self.critic_linear2(c)
+        c = torch.relu(self.critic_linear0(y.detach()))
+        c = torch.relu(self.critic_linear1(c))
+        critic = torch.relu(self.critic_linear2(c))
         return action_dist, critic
