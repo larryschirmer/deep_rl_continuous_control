@@ -102,7 +102,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
 
             average_score = 0. if len(params['scores']) < 100 else np.average(
                 params['scores'][-100:])
-            if epoch % 1 == 0:
+            if epoch % 10 == 0:
                 highscores = [r[0] for r in replay]
                 scores = ' '.join(["{:.2f}".format(s) for s in highscores])
                 print("Epoch: {}, Loss: {:.7f}, Ave Score: {:.4f}, high scores: [{}], ".format(
