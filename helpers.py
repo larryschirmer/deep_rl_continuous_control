@@ -74,6 +74,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
     optimizer3 = torch.optim.Adam(
         lr=params['lr'], params=model[3].parameters())
     optimizers = [optimizer0, optimizer1, optimizer2, optimizer3]
+    replay = []
 
     highest_score = 0
     early_stop_captures = []
@@ -85,15 +86,14 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             break
 
         values, logprobs, rewards, final_score = run_episode(
-            model, optimizers, params, epoch, train)
+            model, optimizers, replay, params, epoch, train)
 
         if train and final_score >= highest_score:
             highest_score = final_score
             save_model(model, 'actor_critic_checkpoint@highest.pt')
 
         if train:
-            loss, actor_loss, critic_loss = update_params(
-                optimizers, values, logprobs, rewards, params)
+            loss, actor_loss, critic_loss = update_params(replay, optimizers, params)
 
             params['losses'].append(loss.item())
             params['scores'].append(final_score)
@@ -102,16 +102,18 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
 
             average_score = 0. if len(params['scores']) < 100 else np.average(
                 params['scores'][-100:])
-            if epoch % 10 == 0:
-                print("Epoch: {}, Loss: {:.7f}, Ave Score: {:.4f}, highest: {:.4f}".format(
-                    epoch, loss, average_score, highest_score))
+            if epoch % 1 == 0:
+                highscores = [r[0] for r in replay]
+                scores = ' '.join(["{:.2f}".format(s) for s in highscores])
+                print("Epoch: {}, Loss: {:.7f}, Ave Score: {:.4f}, high scores: [{}], ".format(
+                    epoch, loss, average_score, scores))
             
             if average_score >= early_stop_target:
                 early_stop_captures.append(average_score)
             
 
 
-def run_episode(model, optimizers, params, epoch, train):
+def run_episode(model, optimizers, replay, params, epoch, train):
 
     env_info = params['env'].reset(train_mode=train)[params['brain_name']]
     state_ = env_info.vector_observations[0]        # get the current state
@@ -157,7 +159,18 @@ def run_episode(model, optimizers, params, epoch, train):
         state = torch.from_numpy(state_).float()
         rewards.append(reward)
 
-    return values, logprobs, rewards, sum(rewards)
+    reward_sum = sum(rewards)
+    # Update replay buffer
+    highscores = [r[0] for r in replay]
+    min_highscore = np.amin(highscores) if len(highscores) > 0 else 0.
+    min_highscore_index = np.argmin(highscores) if len(highscores) > 0 else 0.
+    if len(replay) < params['buffer_size']:
+        replay.append(
+            (sum(rewards), values, logprobs, rewards))
+    elif reward_sum > min_highscore:
+        replay[min_highscore_index] = (sum(rewards), values, logprobs, rewards)
+
+    return values, logprobs, rewards, reward_sum
 
 
 prev_logprobs0 = torch.Tensor([0])
@@ -166,11 +179,14 @@ prev_logprobs2 = torch.Tensor([0])
 prev_logprobs3 = torch.Tensor([0])
 
 
-def update_params(optimizers, values, logprobs, rewards, params):
+def update_params(replay, optimizers, params):
     global prev_logprobs0
     global prev_logprobs1
     global prev_logprobs2
     global prev_logprobs3
+
+    sample_index = np.random.randint(0, high=len(replay))
+    (reward_sum, values, logprobs, rewards) = replay[sample_index]
 
     logprob0 = [a[0] for a in logprobs]
     logprob1 = [a[1] for a in logprobs]
@@ -201,7 +217,7 @@ def update_params(optimizers, values, logprobs, rewards, params):
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    gae_reduction = torch.Tensor([(1 - params['gae']) * params['gae'] ** i for i in range(len(Returns))])
+    gae_reduction = torch.Tensor([(1 - params['gae']) * params['gae'] ** i for i in range(len(Returns))]).flip(dims=(0,))
 
     ppo_ratio0 = (logprob0 - prev_logprobs0[-1:]).exp()
     torch.cat((prev_logprobs0[1:], logprob0))
@@ -257,10 +273,10 @@ def update_params(optimizers, values, logprobs, rewards, params):
     optimizers[2].zero_grad()
     optimizers[3].zero_grad()
 
-    loss0.backward()
-    loss1.backward()
-    loss2.backward()
-    loss3.backward()
+    loss0.backward(retain_graph=True)
+    loss1.backward(retain_graph=True)
+    loss2.backward(retain_graph=True)
+    loss3.backward(retain_graph=True)
 
     optimizers[0].step()
     optimizers[1].step()
