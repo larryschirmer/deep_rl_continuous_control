@@ -8,16 +8,13 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-epochs = 50
-annealing_epochs = 50
+epochs = 500
+annealing_epochs = 500
 lr = 0.00001
 gamma = 0.999
-gae = 0.9
-ppo_epsilon = 0.2
 clc = 0.1
 start_epsilon = 0.8
 end_epsilon = 0.3
-gradient_clip = 10
 reward_leadup = 50
 buffer_size = 10
 
@@ -68,10 +65,7 @@ params = {
     'epochs': epochs + annealing_epochs,
     'lr': lr,
     'gamma': gamma,
-    'gae': gae,
-    'ppo_epsilon': ppo_epsilon,
     'clc': clc,
-    'gradient_clip': gradient_clip,
     'reward_leadup': reward_leadup,
     'buffer_size': buffer_size,
     'losses': losses,

@@ -165,29 +165,82 @@ def run_episode(model, optimizers, replay, params, epoch, train):
     min_highscore = np.amin(highscores) if len(highscores) > 0 else 0.
     min_highscore_index = np.argmin(highscores) if len(highscores) > 0 else 0.
     if len(replay) < params['buffer_size']:
+        actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
         replay.append(
-            (sum(rewards), values, logprobs, rewards))
+            (sum(rewards), actor_losses, critic_losses, losses))
     elif reward_sum > min_highscore:
-        replay[min_highscore_index] = (sum(rewards), values, logprobs, rewards)
+        actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
+        replay[min_highscore_index] = (sum(rewards), actor_losses, critic_losses, losses)
 
     return values, logprobs, rewards, reward_sum
 
 
-prev_logprobs0 = torch.Tensor([0])
-prev_logprobs1 = torch.Tensor([0])
-prev_logprobs2 = torch.Tensor([0])
-prev_logprobs3 = torch.Tensor([0])
-
-
 def update_params(replay, optimizers, params):
-    global prev_logprobs0
-    global prev_logprobs1
-    global prev_logprobs2
-    global prev_logprobs3
+    loss0 = torch.tensor(0.)
+    loss1 = torch.tensor(0.)
+    loss2 = torch.tensor(0.)
+    loss3 = torch.tensor(0.)
+    actor_loss0 = torch.tensor(0.)
+    actor_loss1 = torch.tensor(0.)
+    actor_loss2 = torch.tensor(0.)
+    actor_loss3 = torch.tensor(0.)
+    critic_loss0 = torch.tensor(0.)
+    critic_loss1 = torch.tensor(0.)
+    critic_loss2 = torch.tensor(0.)
+    critic_loss3 = torch.tensor(0.)
 
-    sample_index = np.random.randint(0, high=len(replay))
-    (reward_sum, values, logprobs, rewards) = replay[sample_index]
+    for trajectory in replay:
+        rewards_sum, actor_losses, critic_losses, losses = trajectory
+        loss0 += losses[0]
+        loss1 += losses[1]
+        loss2 += losses[2]
+        loss3 += losses[3]
+        actor_loss0 += actor_losses[0]
+        actor_loss1 += actor_losses[1]
+        actor_loss2 += actor_losses[2]
+        actor_loss3 += actor_losses[3]
+        critic_loss0 += critic_losses[0]
+        critic_loss1 += critic_losses[1]
+        critic_loss2 += critic_losses[2]
+        critic_loss3 += critic_losses[3]
+    
 
+    loss0 = loss0 / len(replay)
+    loss1 = loss1 / len(replay)
+    loss2 = loss2 / len(replay)
+    loss3 = loss3 / len(replay)
+    actor_loss0 = actor_loss0 / len(replay)
+    actor_loss1 = actor_loss1 / len(replay)
+    actor_loss2 = actor_loss2 / len(replay)
+    actor_loss3 = actor_loss3 / len(replay)
+    critic_loss0 = critic_loss0 / len(replay)
+    critic_loss1 = critic_loss1 / len(replay)
+    critic_loss2 = critic_loss2 / len(replay)
+    critic_loss3 = critic_loss3 / len(replay)
+
+    optimizers[0].zero_grad()
+    optimizers[1].zero_grad()
+    optimizers[2].zero_grad()
+    optimizers[3].zero_grad()
+
+    loss0.backward(retain_graph=True)
+    loss1.backward(retain_graph=True)
+    loss2.backward(retain_graph=True)
+    loss3.backward(retain_graph=True)
+
+    optimizers[0].step()
+    optimizers[1].step()
+    optimizers[2].step()
+    optimizers[3].step()
+
+    loss_sum = loss0 + loss1 + loss2 + loss3
+    actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
+    critic_loss_sum = critic_loss0 + critic_loss1 + critic_loss2 + critic_loss3
+
+    return loss_sum, actor_loss_sum, critic_loss_sum
+
+def get_trjectory_loss(values, logprobs, rewards, params):
+    
     logprob0 = [a[0] for a in logprobs]
     logprob1 = [a[1] for a in logprobs]
     logprob2 = [a[2] for a in logprobs]
@@ -217,46 +270,20 @@ def update_params(replay, optimizers, params):
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    gae_reduction = torch.Tensor([(1 - params['gae']) * params['gae'] ** i for i in range(len(Returns))]).flip(dims=(0,))
-
-    ppo_ratio0 = (logprob0 - prev_logprobs0[-1:]).exp()
-    torch.cat((prev_logprobs0[1:], logprob0))
-    advantage0 = Returns - values.detach()
-    surrogate00 = ppo_ratio0 * advantage0
-    surrogate01 = torch.clamp(ppo_ratio0, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage0
-
-    ppo_ratio1 = (logprob1 - prev_logprobs1[-1:]).exp()
-    torch.cat((prev_logprobs1[1:], logprob1))
-    advantage1 = Returns - values.detach()
-    surrogate10 = ppo_ratio1 * advantage1
-    surrogate11 = torch.clamp(ppo_ratio1, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage1
-
-    ppo_ratio2 = (logprob2 - prev_logprobs2[-1:]).exp()
-    torch.cat((prev_logprobs2[1:], logprob2))
-    advantage2 = Returns - values.detach()
-    surrogate20 = ppo_ratio2 * advantage2
-    surrogate21 = torch.clamp(ppo_ratio2, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage2
-
-    ppo_ratio3 = (logprob3 - prev_logprobs3[-1:]).exp()
-    torch.cat((prev_logprobs3[1:], logprob3))
-    advantage3 = Returns - values.detach()
-    surrogate30 = ppo_ratio3 * advantage3
-    surrogate31 = torch.clamp(ppo_ratio3, 1.0 - params['ppo_epsilon'], 1.0 + params['ppo_epsilon']) * advantage3
-
-    actor_loss0 = - torch.min(surrogate00, surrogate01) * gae_reduction
-    actor_loss1 = - torch.min(surrogate10, surrogate11) * gae_reduction
-    actor_loss2 = - torch.min(surrogate20, surrogate21) * gae_reduction
-    actor_loss3 = - torch.min(surrogate30, surrogate31) * gae_reduction
+    actor_loss0 = -1*logprob0 * (Returns - values.detach())
+    actor_loss1 = -1*logprob1 * (Returns - values.detach())
+    actor_loss2 = -1*logprob2 * (Returns - values.detach())
+    actor_loss3 = -1*logprob3 * (Returns - values.detach())
 
     critic_loss0 = torch.pow(values - Returns, 2)
     critic_loss1 = torch.pow(values - Returns, 2)
     critic_loss2 = torch.pow(values - Returns, 2)
     critic_loss3 = torch.pow(values - Returns, 2)
 
-    actor_loss0 = torch.clamp(actor_loss0.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
-    actor_loss1 = torch.clamp(actor_loss1.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
-    actor_loss2 = torch.clamp(actor_loss2.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
-    actor_loss3 = torch.clamp(actor_loss3.sum(), min=-params['gradient_clip'], max=params['gradient_clip'])
+    actor_loss0 = actor_loss0.sum()
+    actor_loss1 = actor_loss1.sum()
+    actor_loss2 = actor_loss2.sum()
+    actor_loss3 = actor_loss3.sum()
 
     critic_loss0 = critic_loss0.sum()
     critic_loss1 = critic_loss1.sum()
@@ -268,23 +295,8 @@ def update_params(replay, optimizers, params):
     loss2 = actor_loss2 + params['clc']*critic_loss2
     loss3 = actor_loss3 + params['clc']*critic_loss3
 
-    optimizers[0].zero_grad()
-    optimizers[1].zero_grad()
-    optimizers[2].zero_grad()
-    optimizers[3].zero_grad()
+    actor_losses = (actor_loss0, actor_loss1, actor_loss2, actor_loss3)
+    critic_losses = (critic_loss0, critic_loss1, critic_loss2, critic_loss3)
+    losses = (loss0, loss1, loss2, loss3)
 
-    loss0.backward(retain_graph=True)
-    loss1.backward(retain_graph=True)
-    loss2.backward(retain_graph=True)
-    loss3.backward(retain_graph=True)
-
-    optimizers[0].step()
-    optimizers[1].step()
-    optimizers[2].step()
-    optimizers[3].step()
-
-    loss_sum = loss0 + loss1 + loss2 + loss3
-    actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
-    critic_loss_sum = critic_loss0 + critic_loss1 + critic_loss2 + critic_loss3
-
-    return loss_sum, actor_loss_sum, critic_loss_sum
+    return actor_losses, critic_losses, losses
