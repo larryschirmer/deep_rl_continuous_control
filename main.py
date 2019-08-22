@@ -41,12 +41,7 @@ model_params = {
     'output_dim_critic': output_dim_critic
 }
 
-model0 = ActorCritic(model_params)
-model1 = ActorCritic(model_params)
-model2 = ActorCritic(model_params)
-model3 = ActorCritic(model_params)
-
-model = [model0, model1, model2, model3]
+model = ActorCritic(model_params)
 
 env = UnityEnvironment(file_name='Reacher.app')
 # get the default brain

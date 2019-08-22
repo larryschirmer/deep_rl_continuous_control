@@ -43,14 +43,12 @@ def plot_scores(scores, filename='', plotName='Score', show=False):
         plt.savefig(filename)
 
 
-def save_model(models, filename):
+def save_model(model, filename):
 
-    for index, model in enumerate(models):
-        state = {
-            'state_dict': model.state_dict(),
-        }
-        torch.save(state, '{}-{}'.format(index, filename))
+    state = { 'state_dict': model.state_dict() }
+    torch.save(state, '{}'.format(filename))
 
+        
 
 def load_model(model, filename, evalMode=True):
     checkpoint = torch.load(filename)
@@ -65,15 +63,8 @@ def load_model(model, filename, evalMode=True):
 
 
 def worker(model, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
-    optimizer0 = torch.optim.Adam(
-        lr=params['lr'], params=model[0].parameters())
-    optimizer1 = torch.optim.Adam(
-        lr=params['lr'], params=model[1].parameters())
-    optimizer2 = torch.optim.Adam(
-        lr=params['lr'], params=model[2].parameters())
-    optimizer3 = torch.optim.Adam(
-        lr=params['lr'], params=model[3].parameters())
-    optimizers = [optimizer0, optimizer1, optimizer2, optimizer3]
+
+    optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
     replay = []
 
     highest_score = 0
@@ -85,17 +76,17 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print(early_stop_captures)
             break
 
-        values, logprobs, rewards, final_score = run_episode(model, optimizers, replay, params, epoch, train)
+        values, logprobs, rewards, final_score = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
+        average_score = 0. if len(params['scores']) < 100 else np.average(params['scores'][-100:])
+        params['ave_scores'].append(average_score)
         
         if train and final_score >= highest_score:
             highest_score = final_score
             save_model(model, 'actor_critic_checkpoint@highest.pt')
-            average_score = 0. if len(params['scores']) < 100 else np.average(params['scores'][-100:])
-            params['ave_scores'].append(average_score)
 
         if train and len(replay) >= params['batch_size']:
-            loss, actor_loss, critic_loss = update_params(replay, optimizers, params)
+            loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
 
             params['losses'].append(loss.item())
             params['actor_losses'].append(actor_loss.item())
@@ -110,7 +101,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
               
 
 
-def run_episode(model, optimizers, replay, params, epoch, train):
+def run_episode(model, replay, params, epoch, train):
 
     env_info = params['env'].reset(train_mode=train)[params['brain_name']]
     state_ = env_info.vector_observations[0]        # get the current state
@@ -123,12 +114,8 @@ def run_episode(model, optimizers, replay, params, epoch, train):
     step_count = 0
     while (done == False):
         step_count += 1
-        policies0_dist, value0 = model[0](state, epoch)
-        policies1_dist, value1 = model[1](state, epoch)
-        policies2_dist, value2 = model[2](state, epoch)
-        policies3_dist, value3 = model[3](state, epoch)
-
-        value = torch.max(torch.tensor([value0, value1, value2, value3]))
+        policies, value = model(state, epoch)
+        [policies0_dist, policies1_dist, policies2_dist, policies3_dist] = policies
 
         action0 = torch.clamp(policies0_dist.rsample(), min=-1, max=1)
         action1 = torch.clamp(policies1_dist.rsample(), min=-1, max=1)
@@ -164,7 +151,7 @@ def run_episode(model, optimizers, replay, params, epoch, train):
     return values, logprobs, rewards, reward_sum
 
 
-def update_params(replay, optimizers, params):
+def update_params(replay, optimizer, params):
     loss0 = torch.tensor(0.)
     loss1 = torch.tensor(0.)
     loss2 = torch.tensor(0.)
@@ -206,27 +193,17 @@ def update_params(replay, optimizers, params):
     critic_loss1 = critic_loss1 / len(replay)
     critic_loss2 = critic_loss2 / len(replay)
     critic_loss3 = critic_loss3 / len(replay)
+    
+    loss_mean = (loss0 + loss1 + loss2 + loss3) / 4
 
-    optimizers[0].zero_grad()
-    optimizers[1].zero_grad()
-    optimizers[2].zero_grad()
-    optimizers[3].zero_grad()
+    optimizer.zero_grad()
+    loss_mean.backward()
+    optimizer.step()
 
-    loss0.backward()
-    loss1.backward()
-    loss2.backward()
-    loss3.backward()
-
-    optimizers[0].step()
-    optimizers[1].step()
-    optimizers[2].step()
-    optimizers[3].step()
-
-    loss_sum = loss0 + loss1 + loss2 + loss3
     actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
     critic_loss_sum = critic_loss0 + critic_loss1 + critic_loss2 + critic_loss3
 
-    return loss_sum, actor_loss_sum, critic_loss_sum
+    return loss_mean, actor_loss_sum, critic_loss_sum
 
 def get_trjectory_loss(values, logprobs, rewards, params):
     
