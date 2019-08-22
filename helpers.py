@@ -85,33 +85,29 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print(early_stop_captures)
             break
 
-        values, logprobs, rewards, final_score = run_episode(
-            model, optimizers, replay, params, epoch, train)
-
+        values, logprobs, rewards, final_score = run_episode(model, optimizers, replay, params, epoch, train)
+        params['scores'].append(final_score)
+        
         if train and final_score >= highest_score:
             highest_score = final_score
             save_model(model, 'actor_critic_checkpoint@highest.pt')
+            average_score = 0. if len(params['scores']) < 100 else np.average(params['scores'][-100:])
+            params['ave_scores'].append(average_score)
 
-        if train:
+        if train and len(replay) >= params['batch_size']:
             loss, actor_loss, critic_loss = update_params(replay, optimizers, params)
 
             params['losses'].append(loss.item())
-            params['scores'].append(final_score)
             params['actor_losses'].append(actor_loss.item())
             params['critic_losses'].append(critic_loss.item())
 
-            average_score = 0. if len(params['scores']) < 100 else np.average(
-                params['scores'][-100:])
-            if epoch % 1 == 0:
-                highscores = np.array([r[0] for r in replay])
-                highscores = highscores.argsort()[-10:][::-1]
-                scores = ' '.join(["{:.2f}".format(s) for s in highscores])
-                print("Epoch: {}, Loss: {:.7f}, Ave Score: {:.4f}, high scores: [{}], ".format(
-                    epoch, loss, average_score, scores))
-            
+            scores = ' '.join(["{:.2f}".format(s[0]) for s in replay])
+            print("Epoch: {}, Ave Score: {:.4f}, replay: [{}], ".format(epoch + 1, average_score, scores))
+        
+            replay = []
             if average_score >= early_stop_target:
                 early_stop_captures.append(average_score)
-            
+              
 
 
 def run_episode(model, optimizers, replay, params, epoch, train):
@@ -162,16 +158,8 @@ def run_episode(model, optimizers, replay, params, epoch, train):
 
     reward_sum = sum(rewards)
     # Update replay buffer
-    highscores = [r[0] for r in replay]
-    min_highscore = np.amin(highscores) if len(highscores) > 0 else 0.
-    min_highscore_index = np.argmin(highscores) if len(highscores) > 0 else 0.
-    if len(replay) < params['buffer_size']:
-        actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
-        replay.append(
-            (sum(rewards), actor_losses, critic_losses, losses))
-    elif reward_sum > min_highscore:
-        actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
-        replay[min_highscore_index] = (sum(rewards), actor_losses, critic_losses, losses)
+    actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
+    replay.append((sum(rewards), actor_losses, critic_losses, losses))
 
     return values, logprobs, rewards, reward_sum
 
@@ -224,10 +212,10 @@ def update_params(replay, optimizers, params):
     optimizers[2].zero_grad()
     optimizers[3].zero_grad()
 
-    loss0.backward(retain_graph=True)
-    loss1.backward(retain_graph=True)
-    loss2.backward(retain_graph=True)
-    loss3.backward(retain_graph=True)
+    loss0.backward()
+    loss1.backward()
+    loss2.backward()
+    loss3.backward()
 
     optimizers[0].step()
     optimizers[1].step()
@@ -271,10 +259,10 @@ def get_trjectory_loss(values, logprobs, rewards, params):
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    actor_loss0 = -1*logprob0 * (Returns - values.detach())
-    actor_loss1 = -1*logprob1 * (Returns - values.detach())
-    actor_loss2 = -1*logprob2 * (Returns - values.detach())
-    actor_loss3 = -1*logprob3 * (Returns - values.detach())
+    actor_loss0 = logprob0 * (Returns - values.detach())
+    actor_loss1 = logprob1 * (Returns - values.detach())
+    actor_loss2 = logprob2 * (Returns - values.detach())
+    actor_loss3 = logprob3 * (Returns - values.detach())
 
     critic_loss0 = torch.pow(values - Returns, 2)
     critic_loss1 = torch.pow(values - Returns, 2)

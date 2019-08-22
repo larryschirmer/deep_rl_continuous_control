@@ -8,15 +8,15 @@ from model import ActorCritic
 from helpers import plot_losses, plot_scores, save_model, worker
 
 # hyperparameters
-epochs = 500
-annealing_epochs = 500
+epochs = 100
+annealing_epochs = 900
 lr = 0.00001
 gamma = 0.999
 clc = 0.1
 start_epsilon = 0.8
-end_epsilon = 0.3
-reward_leadup = 50
-buffer_size = 10
+end_epsilon = 0.1
+reward_leadup = 200
+batch_size = 10
 
 input_dim = 33
 shared_hidden0 = 128
@@ -58,6 +58,7 @@ losses = []
 actor_losses = []
 critic_losses = []
 scores = []
+ave_scores = []
 
 params = {
     'env': env,
@@ -67,9 +68,10 @@ params = {
     'gamma': gamma,
     'clc': clc,
     'reward_leadup': reward_leadup,
-    'buffer_size': buffer_size,
+    'batch_size': batch_size,
     'losses': losses,
     'scores': scores,
+    'ave_scores': ave_scores,
     'actor_losses': actor_losses,
     'critic_losses': critic_losses
 }
@@ -80,19 +82,8 @@ save_model(model, 'actor_critic.pt')
 end = perf_counter()
 print((end - start))
 
-rolling_window = 50
-
-ave_loss = pd.Series(losses).rolling(rolling_window).mean()
 plot_losses(losses, 'ave_loss-{}.png'.format(epochs))
-
-ave_actor_loss = pd.Series(actor_losses).rolling(rolling_window).mean()
-plot_losses(ave_actor_loss, 'ave_actor_loss-{}.png'.format(epochs), plotName="Ave Actor Losses")
-
-ave_critic_loss = pd.Series(critic_losses).rolling(rolling_window).mean()
-plot_losses(ave_critic_loss, 'ave_critic_loss-{}.png'.format(epochs), plotName="Ave Critic Losses")
-
+plot_losses(actor_losses, 'actor_loss-{}.png'.format(epochs), plotName="Actor Losses")
+plot_losses(critic_losses, 'critic_loss-{}.png'.format(epochs), plotName="Critic Losses")
 plot_scores(scores, 'scores-{}.png'.format(epochs))
-
-ave_scores = pd.Series(scores).rolling(50*2).mean()
-plot_scores(ave_scores, 'ave_scores-{}.png'.format(epochs),
-            plotName='Ave Score')
+plot_scores(ave_scores, 'ave_scores-{}.png'.format(epochs), plotName='Ave Score')
