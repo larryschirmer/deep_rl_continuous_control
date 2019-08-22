@@ -117,10 +117,10 @@ def run_episode(model, replay, params, epoch, train):
         policies, value = model(state, epoch)
         [policies0_dist, policies1_dist, policies2_dist, policies3_dist] = policies
 
-        action0 = torch.clamp(policies0_dist.rsample(), min=-1, max=1)
-        action1 = torch.clamp(policies1_dist.rsample(), min=-1, max=1)
-        action2 = torch.clamp(policies2_dist.rsample(), min=-1, max=1)
-        action3 = torch.clamp(policies3_dist.rsample(), min=-1, max=1)
+        action0 = torch.clamp(policies0_dist.sample(), min=-1, max=1)
+        action1 = torch.clamp(policies1_dist.sample(), min=-1, max=1)
+        action2 = torch.clamp(policies2_dist.sample(), min=-1, max=1)
+        action3 = torch.clamp(policies3_dist.sample(), min=-1, max=1)
         logprob0 = policies0_dist.log_prob(action0)
         logprob1 = policies1_dist.log_prob(action1)
         logprob2 = policies2_dist.log_prob(action2)
@@ -160,13 +160,10 @@ def update_params(replay, optimizer, params):
     actor_loss1 = torch.tensor(0.)
     actor_loss2 = torch.tensor(0.)
     actor_loss3 = torch.tensor(0.)
-    critic_loss0 = torch.tensor(0.)
-    critic_loss1 = torch.tensor(0.)
-    critic_loss2 = torch.tensor(0.)
-    critic_loss3 = torch.tensor(0.)
+    critic_loss = torch.tensor(0.)
 
     for trajectory in replay:
-        rewards_sum, actor_losses, critic_losses, losses = trajectory
+        rewards_sum, actor_losses, critic_loss, losses = trajectory
         loss0 += losses[0]
         loss1 += losses[1]
         loss2 += losses[2]
@@ -175,10 +172,7 @@ def update_params(replay, optimizer, params):
         actor_loss1 += actor_losses[1]
         actor_loss2 += actor_losses[2]
         actor_loss3 += actor_losses[3]
-        critic_loss0 += critic_losses[0]
-        critic_loss1 += critic_losses[1]
-        critic_loss2 += critic_losses[2]
-        critic_loss3 += critic_losses[3]
+        critic_loss += critic_loss
     
 
     loss0 = loss0 / len(replay)
@@ -189,21 +183,21 @@ def update_params(replay, optimizer, params):
     actor_loss1 = actor_loss1 / len(replay)
     actor_loss2 = actor_loss2 / len(replay)
     actor_loss3 = actor_loss3 / len(replay)
-    critic_loss0 = critic_loss0 / len(replay)
-    critic_loss1 = critic_loss1 / len(replay)
-    critic_loss2 = critic_loss2 / len(replay)
-    critic_loss3 = critic_loss3 / len(replay)
-    
-    loss_mean = (loss0 + loss1 + loss2 + loss3) / 4
+    critic_loss = critic_loss / len(replay)
 
     optimizer.zero_grad()
-    loss_mean.backward()
+    loss0.backward()
+    loss1.backward()
+    loss2.backward()
+    loss3.backward()
     optimizer.step()
 
-    actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
-    critic_loss_sum = critic_loss0 + critic_loss1 + critic_loss2 + critic_loss3
+    loss_mean = (loss0 + loss1 + loss2 + loss3) / 4
 
-    return loss_mean, actor_loss_sum, critic_loss_sum
+    actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
+
+    return loss_mean, actor_loss_sum, critic_loss
+
 
 def get_trjectory_loss(values, logprobs, rewards, params):
     
@@ -236,33 +230,26 @@ def get_trjectory_loss(values, logprobs, rewards, params):
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    actor_loss0 = logprob0 * (Returns - values.detach())
-    actor_loss1 = logprob1 * (Returns - values.detach())
-    actor_loss2 = logprob2 * (Returns - values.detach())
-    actor_loss3 = logprob3 * (Returns - values.detach())
+    actor_loss0 = -logprob0 * Returns
+    actor_loss1 = -logprob1 * Returns
+    actor_loss2 = -logprob2 * Returns
+    actor_loss3 = -logprob3 * Returns
 
-    critic_loss0 = torch.pow(values - Returns, 2)
-    critic_loss1 = torch.pow(values - Returns, 2)
-    critic_loss2 = torch.pow(values - Returns, 2)
-    critic_loss3 = torch.pow(values - Returns, 2)
+    critic_loss = torch.pow(values - Returns, 2)
 
-    actor_loss0 = actor_loss0.sum()
-    actor_loss1 = actor_loss1.sum()
-    actor_loss2 = actor_loss2.sum()
-    actor_loss3 = actor_loss3.sum()
+    actor_loss0 = actor_loss0.mean()
+    actor_loss1 = actor_loss1.mean()
+    actor_loss2 = actor_loss2.mean()
+    actor_loss3 = actor_loss3.mean()
 
-    critic_loss0 = critic_loss0.sum()
-    critic_loss1 = critic_loss1.sum()
-    critic_loss2 = critic_loss2.sum()
-    critic_loss3 = critic_loss3.sum()
+    critic_loss = critic_loss.mean()
 
-    loss0 = actor_loss0 + params['clc']*critic_loss0
-    loss1 = actor_loss1 + params['clc']*critic_loss1
-    loss2 = actor_loss2 + params['clc']*critic_loss2
-    loss3 = actor_loss3 + params['clc']*critic_loss3
+    loss0 = actor_loss0 + params['clc']*critic_loss
+    loss1 = actor_loss1 + params['clc']*critic_loss
+    loss2 = actor_loss2 + params['clc']*critic_loss
+    loss3 = actor_loss3 + params['clc']*critic_loss
 
     actor_losses = (actor_loss0, actor_loss1, actor_loss2, actor_loss3)
-    critic_losses = (critic_loss0, critic_loss1, critic_loss2, critic_loss3)
     losses = (loss0, loss1, loss2, loss3)
 
-    return actor_losses, critic_losses, losses
+    return actor_losses, critic_loss, losses
