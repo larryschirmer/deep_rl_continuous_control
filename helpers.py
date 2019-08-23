@@ -185,14 +185,11 @@ def update_params(replay, optimizer, params):
     actor_loss3 = actor_loss3 / len(replay)
     critic_loss = critic_loss / len(replay)
 
-    optimizer.zero_grad()
-    loss0.backward()
-    loss1.backward()
-    loss2.backward()
-    loss3.backward()
-    optimizer.step()
-
     loss_mean = (loss0 + loss1 + loss2 + loss3) / 4
+
+    optimizer.zero_grad()
+    loss_mean.backward()
+    optimizer.step()
 
     actor_loss_sum = actor_loss0 + actor_loss1 + actor_loss2 + actor_loss3
 
@@ -230,10 +227,10 @@ def get_trjectory_loss(values, logprobs, rewards, params):
     Returns = torch.stack(Returns).view(-1)
     Returns = F.normalize(Returns, dim=0)
 
-    actor_loss0 = -logprob0 * Returns
-    actor_loss1 = -logprob1 * Returns
-    actor_loss2 = -logprob2 * Returns
-    actor_loss3 = -logprob3 * Returns
+    actor_loss0 = -logprob0 * (Returns - values.detach())
+    actor_loss1 = -logprob1 * (Returns - values.detach())
+    actor_loss2 = -logprob2 * (Returns - values.detach())
+    actor_loss3 = -logprob3 * (Returns - values.detach())
 
     critic_loss = torch.pow(values - Returns, 2)
 

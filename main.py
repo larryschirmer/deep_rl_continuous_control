@@ -10,11 +10,11 @@ from helpers import plot_losses, plot_scores, save_model, worker
 # hyperparameters
 epochs = 100
 annealing_epochs = 900
-lr = 0.00001
+lr = 0.0001
 gamma = 0.999
 clc = 0.1
 start_epsilon = 0.8
-end_epsilon = 0.1
+end_epsilon = 0.2
 reward_leadup = 200
 batch_size = 10
 
@@ -24,7 +24,7 @@ shared_hidden1 = 256
 shared_hidden2 = 128
 actor_hidden = 62
 critic_hidden = 62
-output_dim_actor = 2
+output_dim_actor = 4
 output_dim_critic = 1
 
 model_params = {
