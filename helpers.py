@@ -98,6 +98,12 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             replay = []
             if average_score >= early_stop_target:
                 early_stop_captures.append(average_score)
+            
+            plot_losses(params['losses'], 'ave_loss.png')
+            plot_losses(params['actor_losses'], 'actor_loss.png', plotName="Actor Losses")
+            plot_losses(params['critic_losses'], 'critic_loss.png', plotName="Critic Losses")
+            plot_scores(params['scores'], 'scores.png')
+            plot_scores(params['scores'], 'ave_scores.png', plotName='Ave Score')
               
 
 
