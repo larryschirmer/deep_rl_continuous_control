@@ -5,17 +5,17 @@ import pandas as pd
 import copy
 
 from model import ActorCritic
-from helpers import plot_losses, plot_scores, save_model, worker
+from helpers import save_model, worker
 
 # hyperparameters
-epochs = 100
-annealing_epochs = 900
+epochs = 2600
+annealing_epochs = 400
 lr = 0.0001
 gamma = 0.999
 clc = 0.1
 start_epsilon = 0.8
 end_epsilon = 0.2
-reward_leadup = 200
+reward_leadup = 1000
 batch_size = 10
 
 input_dim = 33
@@ -76,9 +76,3 @@ worker(model, params)
 save_model(model, 'actor_critic.pt')
 end = perf_counter()
 print((end - start))
-
-plot_losses(losses, 'ave_loss-{}.png'.format(epochs))
-plot_losses(actor_losses, 'actor_loss-{}.png'.format(epochs), plotName="Actor Losses")
-plot_losses(critic_losses, 'critic_loss-{}.png'.format(epochs), plotName="Critic Losses")
-plot_scores(scores, 'scores-{}.png'.format(epochs))
-plot_scores(ave_scores, 'ave_scores-{}.png'.format(epochs), plotName='Ave Score')
