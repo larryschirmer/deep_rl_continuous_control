@@ -15,6 +15,9 @@ def plot_losses(losses, filename='', plotName='Loss', show=False):
 
     if (filename):
         plt.savefig(filename)
+    
+    plt.cla()
+    plt.close(fig)
 
 
 def plot_durations(durations, filename='', plotName='Duration', show=False):
@@ -29,6 +32,9 @@ def plot_durations(durations, filename='', plotName='Duration', show=False):
     if (filename):
         plt.savefig(filename)
 
+    plt.cla()
+    plt.close(fig)
+
 
 def plot_scores(scores, filename='', plotName='Score', show=False):
     fig = plt.figure()
@@ -41,6 +47,9 @@ def plot_scores(scores, filename='', plotName='Score', show=False):
 
     if (filename):
         plt.savefig(filename)
+
+    plt.cla()
+    plt.close(fig)
 
 
 def save_model(model, filename):
