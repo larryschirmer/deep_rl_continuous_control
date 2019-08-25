@@ -249,12 +249,12 @@ def get_trjectory_loss(values, logprobs, rewards, params):
 
     critic_loss = torch.pow(values - Returns, 2)
 
-    actor_loss0 = actor_loss0.mean()
-    actor_loss1 = actor_loss1.mean()
-    actor_loss2 = actor_loss2.mean()
-    actor_loss3 = actor_loss3.mean()
+    actor_loss0 = actor_loss0.sum()
+    actor_loss1 = actor_loss1.sum()
+    actor_loss2 = actor_loss2.sum()
+    actor_loss3 = actor_loss3.sum()
 
-    critic_loss = critic_loss.mean()
+    critic_loss = critic_loss.sum()
 
     loss0 = actor_loss0 + params['clc']*critic_loss
     loss1 = actor_loss1 + params['clc']*critic_loss
