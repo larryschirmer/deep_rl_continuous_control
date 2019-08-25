@@ -7,6 +7,21 @@ from matplotlib import pyplot as plt
 def plot_losses(losses, filename='', plotName='Loss', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
+    plt.plot(np.arange(len(losses[-200:])), losses[-200:])
+    plt.axhline(y=0.0, color="#999999", linestyle='-')
+    plt.ylabel(plotName)
+    plt.xlabel("Training Steps")
+    if show:
+        plt.show()
+
+    if (filename):
+        plt.savefig("trimmed-{}".format(filename))
+    
+    plt.cla()
+    plt.close(fig)
+
+    fig = plt.figure()
+    fig.add_subplot(111)
     plt.plot(np.arange(len(losses)), losses)
     plt.axhline(y=0.0, color="#999999", linestyle='-')
     plt.ylabel(plotName)
@@ -40,9 +55,9 @@ def plot_durations(durations, filename='', plotName='Duration', show=False):
 def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
-    plt.plot(np.arange(len(scores)), scores, color="#eeeeee")
+    plt.plot(np.arange(len(scores)), scores, color="#d9d9d9")
     plt.plot(np.arange(len(ave_scores)), ave_scores, color="#333333")
-    plt.axhline(y=np.amax(ave_scores), color="#999999", linestyle='-')
+    plt.axhline(y=np.amax(ave_scores), color="#8a8a8a", linestyle='-')
     plt.ylabel(plotName)
     plt.xlabel('Episode #')
     if show:
@@ -111,7 +126,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             if average_score >= early_stop_target:
                 early_stop_captures.append(average_score)
             
-            plot_losses(params['losses'], 'ave_loss.png')
+            plot_losses(params['losses'], 'loss.png')
             plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
             plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
             plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
