@@ -36,10 +36,11 @@ def plot_durations(durations, filename='', plotName='Duration', show=False):
     plt.close(fig)
 
 
-def plot_scores(scores, filename='', plotName='Score', show=False):
+def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
-    plt.plot(np.arange(len(scores)), scores)
+    plt.plot(np.arange(len(scores)), scores, color="#eeeeee")
+    plt.plot(np.arange(len(ave_scores)), ave_scores, color="#333333")
     plt.ylabel(plotName)
     plt.xlabel('Episode #')
     if show:
@@ -87,7 +88,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
 
         values, logprobs, rewards, final_score = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
-        average_score = 0. if len(params['scores']) < 100 else np.average(params['scores'][-100:])
+        average_score = np.average(params['scores'][-100:])
         params['ave_scores'].append(average_score)
         
         if train and final_score >= highest_score:
@@ -101,18 +102,17 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             params['actor_losses'].append(actor_loss.item())
             params['critic_losses'].append(critic_loss.item())
 
-            scores = ' '.join(["{:.2f}".format(s[0]) for s in replay])
-            print("Epoch: {}, Ave Score: {:.4f}, replay: [{}], ".format(epoch + 1, average_score, scores))
+            scores = ' '.join(["{:.3f}".format(s[0]) for s in replay])
+            print("Epoch: {}, Ave Score: {:.4f}, Max: {:.4f}, replay: [{}], ".format(epoch + 1, average_score, np.amax(params['scores']), scores))
         
             replay = []
             if average_score >= early_stop_target:
                 early_stop_captures.append(average_score)
             
             plot_losses(params['losses'], 'ave_loss.png')
-            plot_losses(params['actor_losses'], 'actor_loss.png', plotName="Actor Losses")
-            plot_losses(params['critic_losses'], 'critic_loss.png', plotName="Critic Losses")
-            plot_scores(params['scores'], 'scores.png')
-            plot_scores(params['scores'], 'ave_scores.png', plotName='Ave Score')
+            plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
+            plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
+            plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
               
 
 
@@ -146,7 +146,7 @@ def run_episode(model, replay, params, epoch, train):
 
         action_list = np.array([action0.detach().numpy(), action1.detach(
         ).numpy(), action2.detach().numpy(), action3.detach().numpy()])
-        # send all actions to tne environment
+        # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)
         state_ = env_info.vector_observations[0]
