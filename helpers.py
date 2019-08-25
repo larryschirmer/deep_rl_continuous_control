@@ -8,6 +8,7 @@ def plot_losses(losses, filename='', plotName='Loss', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
     plt.plot(np.arange(len(losses)), losses)
+    plt.axhline(y=0.0, color="#999999", linestyle='-')
     plt.ylabel(plotName)
     plt.xlabel("Training Steps")
     if show:
@@ -41,6 +42,7 @@ def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     fig.add_subplot(111)
     plt.plot(np.arange(len(scores)), scores, color="#eeeeee")
     plt.plot(np.arange(len(ave_scores)), ave_scores, color="#333333")
+    plt.axhline(y=np.amax(ave_scores), color="#999999", linestyle='-')
     plt.ylabel(plotName)
     plt.xlabel('Episode #')
     if show:
