@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 from torch import nn
-from torch.nn import functional as F
 
 torch.manual_seed(0)
 
@@ -36,12 +35,14 @@ class ActorCritic(nn.Module):
         a = torch.tanh(self.actor_linear0(y))
         a = torch.tanh(self.actor_linear1(a))
         actor = self.actor_linear2(a)
+        actor_mean = torch.tanh(actor)
+        actor_std = torch.tensor(epsilon)
+        action_dist0 = torch.distributions.Normal(actor_mean[0], actor_std)
+        action_dist1 = torch.distributions.Normal(actor_mean[1], actor_std)
+        action_dist2 = torch.distributions.Normal(actor_mean[2], actor_std)
+        action_dist3 = torch.distributions.Normal(actor_mean[3], actor_std)
 
-        actor_mean = torch.tanh(actor[0])
-        actor_std = torch.clamp(actor[1], min=epsilon, max=self.start_epsilon)
-        action_dist = torch.distributions.Normal(actor_mean, actor_std)
-
-        c = F.relu(self.critic_linear0(y.detach()))
-        c = F.relu(self.critic_linear1(c))
-        critic = self.critic_linear2(c)
-        return action_dist, critic
+        c = torch.relu(self.critic_linear0(y.detach()))
+        c = torch.relu(self.critic_linear1(c))
+        critic = torch.relu(self.critic_linear2(c))
+        return [action_dist0, action_dist1, action_dist2, action_dist3], critic
