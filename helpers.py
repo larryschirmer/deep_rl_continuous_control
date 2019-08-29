@@ -136,9 +136,10 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
 def run_episode(model, replay, params, epoch, train):
 
     env_info = params['env'].reset(train_mode=train)[params['brain_name']]
-    state_ = env_info.vector_observations[0]        # get the current state
-    state = torch.from_numpy(state_).float()
-    score = np.zeros(1)                            # initialize the score
+    state_ = env_info.vector_observations
+    num_agents = len(env_info.agents)
+    states = torch.from_numpy(state_).float()
+    scores = np.zeros(num_agents)               # initialize the score
 
     values, logprobs, rewards = [], [], []
     done = False
@@ -146,7 +147,7 @@ def run_episode(model, replay, params, epoch, train):
     step_count = 0
     while (done == False):
         step_count += 1
-        policies, value = model(state, epoch)
+        policies, value = model(states, epoch)
         [policies0_dist, policies1_dist, policies2_dist, policies3_dist] = policies
 
         action0 = torch.clamp(policies0_dist.sample(), min=-1, max=1)
@@ -158,29 +159,30 @@ def run_episode(model, replay, params, epoch, train):
         logprob2 = policies2_dist.log_prob(action2)
         logprob3 = policies3_dist.log_prob(action3)
 
-        values.append(value)
-        logprobs.append([logprob0, logprob1, logprob2, logprob3])
+        values.append(value.view(-1))
+        logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
 
-        action_list = np.array([action0.detach().numpy(), action1.detach(
-        ).numpy(), action2.detach().numpy(), action3.detach().numpy()])
+        action_list = [action0.detach().numpy().squeeze(), action1.detach().numpy().squeeze(), action2.detach().numpy().squeeze(), action3.detach().numpy().squeeze()]
+        action_list = np.stack(action_list, axis=1)
         # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)
-        state_ = env_info.vector_observations[0]
+        state_ = env_info.vector_observations
         # get reward (for each agent)
-        reward = env_info.rewards[0]
+        reward = env_info.rewards
         # see if episode finished
         done = env_info.local_done[0]
 
-        state = torch.from_numpy(state_).float()
+        states = torch.from_numpy(state_).float()
         rewards.append(reward)
+        scores += np.array(reward)
 
-    reward_sum = sum(rewards)
+
     # Update replay buffer
     actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
-    replay.append((sum(rewards), actor_losses, critic_losses, losses))
+    replay.append((scores, actor_losses, critic_losses, losses))
 
-    return values, logprobs, rewards, reward_sum
+    return values, logprobs, rewards, scores
 
 
 def update_params(replay, optimizer, params):
@@ -229,7 +231,7 @@ def update_params(replay, optimizer, params):
 
 
 def get_trjectory_loss(values, logprobs, rewards, params):
-    
+
     logprob0 = [a[0] for a in logprobs]
     logprob1 = [a[1] for a in logprobs]
     logprob2 = [a[2] for a in logprobs]
