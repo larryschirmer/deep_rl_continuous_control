@@ -28,19 +28,36 @@ class ActorCritic(nn.Module):
             (self.end_epsilon - self.start_epsilon)
             / (self.epochs - 0) * epoch + self.start_epsilon, self.end_epsilon, self.start_epsilon)
 
+        actor_std = torch.tensor(epsilon)
+        
         y = torch.tanh(self.shared_linear0(x))
         y = torch.tanh(self.shared_linear1(y))
         y = torch.tanh(self.shared_linear2(y))
 
-        a = torch.tanh(self.actor_linear0(y))
-        a = torch.tanh(self.actor_linear1(a))
-        actor = self.actor_linear2(a)
-        actor_mean = torch.tanh(actor)
-        actor_std = torch.tensor(epsilon)
-        action_dist0 = torch.distributions.Normal(actor_mean[0], actor_std)
-        action_dist1 = torch.distributions.Normal(actor_mean[1], actor_std)
-        action_dist2 = torch.distributions.Normal(actor_mean[2], actor_std)
-        action_dist3 = torch.distributions.Normal(actor_mean[3], actor_std)
+        a0 = torch.tanh(self.actor_linear0(y))
+        a0 = torch.tanh(self.actor_linear1(a0))
+        actor0 = self.actor_linear2(a0)
+        actor_mean0 = torch.tanh(actor0)
+
+        a1 = torch.tanh(self.actor_linear0(y))
+        a1 = torch.tanh(self.actor_linear1(a1))
+        actor1 = self.actor_linear2(a1)
+        actor_mean1 = torch.tanh(actor1)
+
+        a2 = torch.tanh(self.actor_linear0(y))
+        a2 = torch.tanh(self.actor_linear1(a2))
+        actor2 = self.actor_linear2(a2)
+        actor_mean2 = torch.tanh(actor2)
+
+        a3 = torch.tanh(self.actor_linear0(y))
+        a3 = torch.tanh(self.actor_linear1(a3))
+        actor3 = self.actor_linear2(a3)
+        actor_mean3 = torch.tanh(actor3)
+
+        action_dist0 = torch.distributions.Normal(actor_mean0, actor_std)
+        action_dist1 = torch.distributions.Normal(actor_mean1, actor_std)
+        action_dist2 = torch.distributions.Normal(actor_mean2, actor_std)
+        action_dist3 = torch.distributions.Normal(actor_mean3, actor_std)
 
         c = torch.relu(self.critic_linear0(y.detach()))
         c = torch.relu(self.critic_linear1(c))
