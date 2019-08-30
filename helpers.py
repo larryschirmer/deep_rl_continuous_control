@@ -113,7 +113,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
         final_score = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
         stacked_scores = np.stack(params['scores'], axis=1)
-        sliced_scores = [agent_scores[:100] for agent_scores in stacked_scores]
+        sliced_scores = [agent_scores[-100:] for agent_scores in stacked_scores]
         average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
         
