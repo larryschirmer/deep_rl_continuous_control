@@ -8,23 +8,23 @@ from model import ActorCritic
 from helpers import save_model, worker
 
 # hyperparameters
-epochs = 5000
-annealing_epochs = 20000
+epochs = 10000
+annealing_epochs = 30000
 lr = 0.0001
 gamma = 0.99
 clc = 0.1
 start_epsilon = 0.8
 end_epsilon = 0.2
 reward_leadup = 50
-batch_size = 12
+batch_size = 40
 
 input_dim = 33
-shared_hidden0 = 128
-shared_hidden1 = 256
-shared_hidden2 = 128
-actor_hidden = 62
-critic_hidden = 62
-output_dim_actor = 4
+shared_hidden0 = 64
+shared_hidden1 = 128
+shared_hidden2 = 64
+actor_hidden = 32
+critic_hidden = 32
+output_dim_actor = 1
 output_dim_critic = 1
 
 model_params = {
@@ -43,7 +43,7 @@ model_params = {
 
 model = ActorCritic(model_params)
 
-env = UnityEnvironment(file_name='Reacher.app')
+env = UnityEnvironment(file_name='Reacher_20.app')
 # get the default brain
 brain_name = env.brain_names[0]
 
