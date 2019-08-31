@@ -24,7 +24,7 @@ shared_hidden1 = 128
 shared_hidden2 = 64
 actor_hidden = 32
 critic_hidden = 32
-output_dim_actor = 1
+output_dim_actor = 4
 output_dim_critic = 1
 
 model_params = {
