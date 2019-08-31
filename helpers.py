@@ -153,20 +153,28 @@ def run_episode(model, replay, params, epoch, train):
     values, logprobs, rewards = [], [], []
     done = False
 
+    epsilon = np.clip((params['end_epsilon'] - params['start_epsilon']) / (params['epochs'] - 0) * epoch + params['start_epsilon'], params['end_epsilon'], params['start_epsilon'])
     step_count = 0
     while (done == False):
         step_count += 1
-        policies, value = model(states, epoch)
-        [policies0_dist, policies1_dist, policies2_dist, policies3_dist] = policies
+        actor_mean, value = model(states)
+        actor_std = torch.tensor(epsilon)
 
-        action0 = torch.clamp(policies0_dist.sample(), min=-1, max=1)
-        action1 = torch.clamp(policies1_dist.sample(), min=-1, max=1)
-        action2 = torch.clamp(policies2_dist.sample(), min=-1, max=1)
-        action3 = torch.clamp(policies3_dist.sample(), min=-1, max=1)
-        logprob0 = policies0_dist.log_prob(action0)
-        logprob1 = policies1_dist.log_prob(action1)
-        logprob2 = policies2_dist.log_prob(action2)
-        logprob3 = policies3_dist.log_prob(action3)
+        actor_mean = actor_mean.t()
+
+        action_dist0 = torch.distributions.Normal(actor_mean[0], actor_std)
+        action_dist1 = torch.distributions.Normal(actor_mean[1], actor_std)
+        action_dist2 = torch.distributions.Normal(actor_mean[2], actor_std)
+        action_dist3 = torch.distributions.Normal(actor_mean[3], actor_std)
+
+        action0 = torch.clamp(action_dist0.sample(), min=-1, max=1)
+        action1 = torch.clamp(action_dist1.sample(), min=-1, max=1)
+        action2 = torch.clamp(action_dist2.sample(), min=-1, max=1)
+        action3 = torch.clamp(action_dist3.sample(), min=-1, max=1)
+        logprob0 = action_dist0.log_prob(action0)
+        logprob1 = action_dist1.log_prob(action1)
+        logprob2 = action_dist2.log_prob(action2)
+        logprob3 = action_dist3.log_prob(action3)
 
         values.append(value.view(-1))
         logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
