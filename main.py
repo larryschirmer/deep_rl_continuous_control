@@ -28,9 +28,6 @@ output_dim_actor = 4
 output_dim_critic = 1
 
 model_params = {
-    'start_epsilon': start_epsilon,
-    'end_epsilon': end_epsilon,
-    'epochs': annealing_epochs,
     'input_dim': input_dim,
     'shared_hidden0': shared_hidden0,
     'shared_hidden1': shared_hidden1,
@@ -58,6 +55,9 @@ ave_scores = []
 params = {
     'env': env,
     'brain_name': brain_name,
+    'start_epsilon': start_epsilon,
+    'end_epsilon': end_epsilon,
+    'epochs': annealing_epochs,
     'epochs': epochs + annealing_epochs,
     'lr': lr,
     'gamma': gamma,
