@@ -110,7 +110,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print(early_stop_captures)
             break
 
-        final_score = run_episode(model, replay, params, epoch, train)
+        final_score, epsilon = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
         stacked_scores = np.stack(params['scores'], axis=1)
         sliced_scores = [agent_scores[-100:] for agent_scores in stacked_scores]
@@ -129,7 +129,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             params['critic_losses'].append(critic_loss.item())
 
             ave_scores = ' '.join(["{:.3f}".format(s) for s in average_score])
-            print("Epoch: {}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, ave_scores, np.amax(params['scores'])))
+            print("Epoch: {}, Epsilon: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, ave_scores, np.amax(params['scores'])))
         
             replay = []
             if average_score.all() >= early_stop_target:
@@ -150,7 +150,7 @@ def run_episode(model, replay, params, epoch, train):
     states = torch.from_numpy(state_).float()
     scores = np.zeros(num_agents)               # initialize the score
 
-    values, logprobs, rewards = [], [], []
+    values, logprobs, rewards, mean_entropy = [], [], [], torch.tensor(0.)
     done = False
 
     epsilon = np.clip((params['end_epsilon'] - params['start_epsilon']) / (params['epochs'] - 0) * epoch + params['start_epsilon'], params['end_epsilon'], params['start_epsilon'])
@@ -166,6 +166,8 @@ def run_episode(model, replay, params, epoch, train):
         action_dist1 = torch.distributions.Normal(actor_mean[1], actor_std)
         action_dist2 = torch.distributions.Normal(actor_mean[2], actor_std)
         action_dist3 = torch.distributions.Normal(actor_mean[3], actor_std)
+
+        mean_entropy = action_dist0.entropy().mean()
 
         action0 = torch.clamp(action_dist0.sample(), min=-1, max=1)
         action1 = torch.clamp(action_dist1.sample(), min=-1, max=1)
@@ -197,6 +199,7 @@ def run_episode(model, replay, params, epoch, train):
 
     # Update replay buffer for each agent
 
+
     stacked_logprob0 = torch.stack([a[0] for a in logprobs], dim=1)
     stacked_logprob1 = torch.stack([a[1] for a in logprobs], dim=1)
     stacked_logprob2 = torch.stack([a[2] for a in logprobs], dim=1)
@@ -211,10 +214,10 @@ def run_episode(model, replay, params, epoch, train):
         agent_logprobs = [stacked_logprob0[agent_index], stacked_logprob1[agent_index], stacked_logprob2[agent_index], stacked_logprob3[agent_index]]
         agent_rewards = stacked_rewards[agent_index]
 
-        actor_losses, critic_losses, losses = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, params)
+        actor_losses, critic_losses, losses = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, params)
         replay.append((scores[agent_index], actor_losses, critic_losses, losses))
 
-    return scores
+    return scores, epsilon
 
 
 def update_params(replay, optimizer, params):
@@ -262,7 +265,7 @@ def update_params(replay, optimizer, params):
     return loss_mean, actor_loss_sum, critic_loss
 
 
-def get_trjectory_loss(values, logprobs, rewards, params):
+def get_trjectory_loss(values, logprobs, rewards, mean_entropy, params):
 
     [logprob0, logprob1, logprob2, logprob3] = logprobs
 
@@ -304,10 +307,10 @@ def get_trjectory_loss(values, logprobs, rewards, params):
 
     critic_loss = critic_loss.sum()
 
-    loss0 = actor_loss0 + params['clc']*critic_loss
-    loss1 = actor_loss1 + params['clc']*critic_loss
-    loss2 = actor_loss2 + params['clc']*critic_loss
-    loss3 = actor_loss3 + params['clc']*critic_loss
+    loss0 = actor_loss0 + params['clc']*critic_loss + 0.01 * mean_entropy
+    loss1 = actor_loss1 + params['clc']*critic_loss + 0.01 * mean_entropy
+    loss2 = actor_loss2 + params['clc']*critic_loss + 0.01 * mean_entropy
+    loss3 = actor_loss3 + params['clc']*critic_loss + 0.01 * mean_entropy
 
     actor_losses = (actor_loss0, actor_loss1, actor_loss2, actor_loss3)
     losses = (loss0, loss1, loss2, loss3)
