@@ -116,10 +116,6 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
         sliced_scores = [agent_scores[-100:] for agent_scores in stacked_scores]
         average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
-        
-        if train and final_score.any() >= highest_score:
-            highest_score = np.amax(final_score)
-            save_model(model, 'actor_critic_checkpoint@highest.pt')
 
         if train and len(replay) >= params['batch_size']:
             loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
@@ -135,11 +131,6 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
             if np.all(np.greater(average_score, early_stop_compare_array)):
                 early_stop_captures.append(average_score)
-            
-            plot_losses(params['losses'], 'loss.png')
-            plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
-            plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
-            plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
               
 
 

@@ -5,7 +5,7 @@ import pandas as pd
 import copy
 
 from model import ActorCritic
-from helpers import save_model, worker
+from helpers import save_model, worker, plot_losses, plot_scores
 
 # hyperparameters
 epochs = 1000
@@ -73,7 +73,25 @@ params = {
 }
 
 start = perf_counter()
-worker(model, params)
-save_model(model, 'actor_critic.pt')
-end = perf_counter()
-print((end - start))
+if __name__ == '__main__':
+    try:
+        worker(model, params)
+        save_model(model, 'actor_critic.pt')
+        plot_losses(params['losses'], 'loss.png')
+        plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
+        plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
+        plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
+        end = perf_counter()
+        print((end - start))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        save_model(model, 'actor_critic.pt')
+        plot_losses(params['losses'], 'loss.png')
+        plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
+        plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
+        plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
+        end = perf_counter()
+        print((end - start))
+
+
