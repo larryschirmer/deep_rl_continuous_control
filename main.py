@@ -13,10 +13,11 @@ annealing_epochs = 1000
 lr = 0.000005
 gamma = 0.99
 clc = 0.1
-start_epsilon = 0.45
-end_epsilon = 0.2
-reward_leadup = 1000
-batch_size = 20
+start_epsilon = 0.3
+end_epsilon = 0.1
+start_reward_leadup = 1000
+end_reward_leadup = 10
+batch_size = 2
 
 input_dim = 33
 shared_hidden0 = 64
@@ -57,12 +58,12 @@ params = {
     'brain_name': brain_name,
     'start_epsilon': start_epsilon,
     'end_epsilon': end_epsilon,
-    'epochs': annealing_epochs,
-    'epochs': epochs + annealing_epochs,
+    'epochs': epochs,
     'lr': lr,
     'gamma': gamma,
     'clc': clc,
-    'reward_leadup': reward_leadup,
+    'start_reward_leadup': start_reward_leadup,
+    'end_reward_leadup': end_reward_leadup,
     'batch_size': batch_size,
     'losses': losses,
     'scores': scores,

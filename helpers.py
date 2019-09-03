@@ -214,7 +214,7 @@ def run_episode(model, replay, params, epoch, train):
         agent_logprobs = [stacked_logprob0[agent_index], stacked_logprob1[agent_index], stacked_logprob2[agent_index], stacked_logprob3[agent_index]]
         agent_rewards = stacked_rewards[agent_index]
 
-        actor_losses, critic_losses, losses = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, params)
+        actor_losses, critic_losses, losses = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, epoch, params)
         replay.append((scores[agent_index], actor_losses, critic_losses, losses))
 
     return scores, epsilon
@@ -265,7 +265,9 @@ def update_params(replay, optimizer, params):
     return loss_mean, actor_loss_sum, critic_loss
 
 
-def get_trjectory_loss(values, logprobs, rewards, mean_entropy, params):
+def get_trjectory_loss(values, logprobs, rewards, mean_entropy, epoch, params):
+
+    reward_leadup = np.clip((params['end_reward_leadup'] - params['start_reward_leadup']) / (params['epochs'] - 0) * epoch + params['start_reward_leadup'], params['end_reward_leadup'], params['start_reward_leadup'])
 
     [logprob0, logprob1, logprob2, logprob3] = logprobs
 
@@ -282,7 +284,7 @@ def get_trjectory_loss(values, logprobs, rewards, mean_entropy, params):
 
     for reward_index in range(len(rewards)):
         if rewards[reward_index].item() > 0:
-            leadup = params['reward_leadup']
+            leadup = reward_leadup
         if leadup == 0:
             total_return = torch.Tensor([0])
         
