@@ -8,15 +8,15 @@ from model import ActorCritic
 from helpers import save_model, worker
 
 # hyperparameters
-epochs = 1000
-annealing_epochs = 1000
-lr = 0.000005
+epochs = 5000
+annealing_epochs = 25000
+lr = 0.00007
 gamma = 0.99
 clc = 0.1
-start_epsilon = 0.45
-end_epsilon = 0.2
-reward_leadup = 1000
-batch_size = 20
+start_epsilon = 0.3
+end_epsilon = 0.1
+reward_leadup = 50
+batch_size = 40
 
 input_dim = 33
 shared_hidden0 = 64
