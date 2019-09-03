@@ -132,7 +132,8 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print("Epoch: {}, Epsilon: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, ave_scores, np.amax(params['scores'])))
         
             replay = []
-            if average_score.all() >= early_stop_target:
+            early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
+            if np.all(np.greater(average_score, early_stop_compare_array)):
                 early_stop_captures.append(average_score)
             
             plot_losses(params['losses'], 'loss.png')
@@ -182,7 +183,7 @@ def run_episode(model, replay, params, epoch, train):
         logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
 
         action_list = [action0.detach().numpy().squeeze(), action1.detach().numpy().squeeze(), action2.detach().numpy().squeeze(), action3.detach().numpy().squeeze()]
-        action_list = np.stack(action_list, axis=1)
+        action_list = np.stack(action_list)
         # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)
@@ -208,7 +209,7 @@ def run_episode(model, replay, params, epoch, train):
     stacked_values = torch.stack(values, dim=1)
     stacked_rewards = np.stack(rewards, axis=1)
 
-    for agent_index in range(20):
+    for agent_index in range(len(env_info.agents)):
   
         agent_values = stacked_values[agent_index]
         agent_logprobs = [stacked_logprob0[agent_index], stacked_logprob1[agent_index], stacked_logprob2[agent_index], stacked_logprob3[agent_index]]
