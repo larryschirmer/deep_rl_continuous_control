@@ -9,9 +9,9 @@ from model import ActorCritic
 from helpers import save_model, worker, plot_losses, plot_scores
 
 # hyperparameters
-epochs = 1000
-annealing_epochs = 1000
-lr = 0.000005
+epochs = 5000
+annealing_epochs = 25000
+lr = 0.00007
 gamma = 0.99
 clc = 0.1
 start_epsilon = 0.3
