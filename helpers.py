@@ -119,7 +119,7 @@ def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_
         average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
 
-        if train and len(replay) >= params['batch_size'] and epoch % 100 == 0:
+        if train and len(replay) >= params['batch_size']:
             loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
 
             params['losses'].append(loss.item())
@@ -127,7 +127,7 @@ def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_
             params['critic_losses'].append(critic_loss.item())
 
             ave_scores = ' '.join(["{:.3f}".format(s) for s in average_score])
-            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
+            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.0f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
         
             replay = []
             early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
