@@ -77,9 +77,12 @@ def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     plt.close(fig)
 
 
-def save_model(model, filename):
+def save_model(model, optimizer, filename):
 
-    state = { 'state_dict': model.state_dict() }
+    state = {
+        'state_dict': model.state_dict(),
+        'optimizer': optimizer.state_dict()
+    }
     torch.save(state, '{}'.format(filename))
 
         
@@ -96,9 +99,8 @@ def load_model(model, filename, evalMode=True):
     return model
 
 
-def worker(model, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
+def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
 
-    optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
     replay = []
 
     highest_score = 0
@@ -110,18 +112,14 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print(early_stop_captures)
             break
 
-        final_score, epsilon = run_episode(model, replay, params, epoch, train)
+        final_score, epsilon, reward_leadup = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
         stacked_scores = np.stack(params['scores'], axis=1)
         sliced_scores = [agent_scores[-100:] for agent_scores in stacked_scores]
         average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
-        
-        if train and final_score.any() >= highest_score:
-            highest_score = np.amax(final_score)
-            save_model(model, 'actor_critic_checkpoint@highest.pt')
 
-        if train and len(replay) >= params['batch_size']:
+        if train and len(replay) >= params['batch_size'] and epoch % 100 == 0:
             loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
 
             params['losses'].append(loss.item())
@@ -129,16 +127,12 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             params['critic_losses'].append(critic_loss.item())
 
             ave_scores = ' '.join(["{:.3f}".format(s) for s in average_score])
-            print("Epoch: {}, Epsilon: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, ave_scores, np.amax(params['scores'])))
+            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
         
             replay = []
-            if average_score.all() >= early_stop_target:
+            early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
+            if np.all(np.greater(average_score, early_stop_compare_array)):
                 early_stop_captures.append(average_score)
-            
-            plot_losses(params['losses'], 'loss.png')
-            plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
-            plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
-            plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
               
 
 
@@ -182,7 +176,7 @@ def run_episode(model, replay, params, epoch, train):
         logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
 
         action_list = [action0.detach().numpy().squeeze(), action1.detach().numpy().squeeze(), action2.detach().numpy().squeeze(), action3.detach().numpy().squeeze()]
-        action_list = np.stack(action_list, axis=1)
+        action_list = np.stack(action_list)
         # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)
@@ -208,16 +202,16 @@ def run_episode(model, replay, params, epoch, train):
     stacked_values = torch.stack(values, dim=1)
     stacked_rewards = np.stack(rewards, axis=1)
 
-    for agent_index in range(20):
+    for agent_index in range(len(env_info.agents)):
   
         agent_values = stacked_values[agent_index]
         agent_logprobs = [stacked_logprob0[agent_index], stacked_logprob1[agent_index], stacked_logprob2[agent_index], stacked_logprob3[agent_index]]
         agent_rewards = stacked_rewards[agent_index]
 
-        actor_losses, critic_losses, losses = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, params)
+        actor_losses, critic_losses, losses, reward_leadup = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, epoch, params)
         replay.append((scores[agent_index], actor_losses, critic_losses, losses))
 
-    return scores, epsilon
+    return scores, epsilon, reward_leadup
 
 
 def update_params(replay, optimizer, params):
@@ -265,7 +259,9 @@ def update_params(replay, optimizer, params):
     return loss_mean, actor_loss_sum, critic_loss
 
 
-def get_trjectory_loss(values, logprobs, rewards, mean_entropy, params):
+def get_trjectory_loss(values, logprobs, rewards, mean_entropy, epoch, params):
+
+    reward_leadup = np.clip((params['end_reward_leadup'] - params['start_reward_leadup']) / (params['epochs'] - 0) * epoch + params['start_reward_leadup'], params['end_reward_leadup'], params['start_reward_leadup'])
 
     [logprob0, logprob1, logprob2, logprob3] = logprobs
 
@@ -282,7 +278,7 @@ def get_trjectory_loss(values, logprobs, rewards, mean_entropy, params):
 
     for reward_index in range(len(rewards)):
         if rewards[reward_index].item() > 0:
-            leadup = params['reward_leadup']
+            leadup = reward_leadup
         if leadup == 0:
             total_return = torch.Tensor([0])
         
@@ -315,4 +311,4 @@ def get_trjectory_loss(values, logprobs, rewards, mean_entropy, params):
     actor_losses = (actor_loss0, actor_loss1, actor_loss2, actor_loss3)
     losses = (loss0, loss1, loss2, loss3)
 
-    return actor_losses, critic_loss, losses
+    return actor_losses, critic_loss, losses, reward_leadup
