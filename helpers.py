@@ -110,14 +110,14 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print(early_stop_captures)
             break
 
-        final_score, epsilon = run_episode(model, replay, params, epoch, train)
+        final_score, epsilon, reward_leadup = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
         stacked_scores = np.stack(params['scores'], axis=1)
         sliced_scores = [agent_scores[-100:] for agent_scores in stacked_scores]
         average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
 
-        if train and len(replay) >= params['batch_size']:
+        if train and len(replay) >= params['batch_size'] and epoch % 100 == 0:
             loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
 
             params['losses'].append(loss.item())
@@ -125,7 +125,7 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             params['critic_losses'].append(critic_loss.item())
 
             ave_scores = ' '.join(["{:.3f}".format(s) for s in average_score])
-            print("Epoch: {}, Epsilon: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, ave_scores, np.amax(params['scores'])))
+            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
         
             replay = []
             early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
@@ -206,10 +206,10 @@ def run_episode(model, replay, params, epoch, train):
         agent_logprobs = [stacked_logprob0[agent_index], stacked_logprob1[agent_index], stacked_logprob2[agent_index], stacked_logprob3[agent_index]]
         agent_rewards = stacked_rewards[agent_index]
 
-        actor_losses, critic_losses, losses = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, epoch, params)
+        actor_losses, critic_losses, losses, reward_leadup = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, epoch, params)
         replay.append((scores[agent_index], actor_losses, critic_losses, losses))
 
-    return scores, epsilon
+    return scores, epsilon, reward_leadup
 
 
 def update_params(replay, optimizer, params):
@@ -309,4 +309,4 @@ def get_trjectory_loss(values, logprobs, rewards, mean_entropy, epoch, params):
     actor_losses = (actor_loss0, actor_loss1, actor_loss2, actor_loss3)
     losses = (loss0, loss1, loss2, loss3)
 
-    return actor_losses, critic_loss, losses
+    return actor_losses, critic_loss, losses, reward_leadup
