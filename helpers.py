@@ -77,9 +77,12 @@ def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     plt.close(fig)
 
 
-def save_model(model, filename):
+def save_model(model, optimizer, filename):
 
-    state = { 'state_dict': model.state_dict() }
+    state = {
+        'state_dict': model.state_dict(),
+        'optimizer': optimizer.state_dict()
+    }
     torch.save(state, '{}'.format(filename))
 
         
@@ -96,9 +99,8 @@ def load_model(model, filename, evalMode=True):
     return model
 
 
-def worker(model, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
+def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
 
-    optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
     replay = []
 
     highest_score = 0

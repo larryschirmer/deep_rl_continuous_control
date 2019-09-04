@@ -3,6 +3,7 @@ from unityagents import UnityEnvironment
 from time import perf_counter
 import pandas as pd
 import copy
+import torch
 
 from model import ActorCritic
 from helpers import save_model, worker, plot_losses, plot_scores
@@ -72,11 +73,15 @@ params = {
     'critic_losses': critic_losses
 }
 
+model = ActorCritic(model_params)
+optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
+
 start = perf_counter()
+worker(model, params)
+
 if __name__ == '__main__':
     try:
-        worker(model, params)
-        save_model(model, 'actor_critic.pt')
+        save_model(model, optimizer, 'actor_critic.pt')
         plot_losses(params['losses'], 'loss.png')
         plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
         plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
@@ -86,7 +91,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     finally:
-        save_model(model, 'actor_critic.pt')
+        save_model(model, optimizer, 'actor_critic.pt')
         plot_losses(params['losses'], 'loss.png')
         plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
         plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
