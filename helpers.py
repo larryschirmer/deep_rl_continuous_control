@@ -7,21 +7,6 @@ from matplotlib import pyplot as plt
 def plot_losses(losses, filename='', plotName='Loss', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
-    plt.plot(np.arange(len(losses[-200:])), losses[-200:])
-    plt.axhline(y=0.0, color="#999999", linestyle='-')
-    plt.ylabel(plotName)
-    plt.xlabel("Training Steps")
-    if show:
-        plt.show()
-
-    if (filename):
-        plt.savefig("trimmed-{}".format(filename))
-    
-    plt.cla()
-    plt.close(fig)
-
-    fig = plt.figure()
-    fig.add_subplot(111)
     plt.plot(np.arange(len(losses)), losses)
     plt.axhline(y=0.0, color="#999999", linestyle='-')
     plt.ylabel(plotName)
@@ -32,28 +17,27 @@ def plot_losses(losses, filename='', plotName='Loss', show=False):
     if (filename):
         plt.savefig(filename)
     
-    plt.cla()
-    plt.close(fig)
+    if not show:
+        plt.cla()
+        plt.close(fig)
 
+    if not show:
+        fig = plt.figure()
+        fig.add_subplot(111)
+        plt.plot(np.arange(len(losses[-200:])), losses[-200:])
+        plt.axhline(y=0.0, color="#999999", linestyle='-')
+        plt.ylabel(plotName)
+        plt.xlabel("Training Steps")
 
-def plot_durations(durations, filename='', plotName='Duration', show=False):
-    fig = plt.figure()
-    fig.add_subplot(111)
-    plt.plot(np.arange(len(durations)), durations)
-    plt.ylabel(plotName)
-    plt.xlabel('Episode #')
-    if show:
-        plt.show()
-
-    if (filename):
-        plt.savefig(filename)
-
-    plt.cla()
-    plt.close(fig)
+        if (filename):
+            plt.savefig("trimmed-{}".format(filename))
+        
+        plt.cla()
+        plt.close(fig)
 
 
 def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
-
+  
     # staked_scores = np.stack(scores, axis=1)
     ave_stacked_scores = np.mean(scores, axis=1)
 
@@ -73,8 +57,9 @@ def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     if (filename):
         plt.savefig(filename)
 
-    plt.cla()
-    plt.close(fig)
+    if not show:
+        plt.cla()
+        plt.close(fig)
 
 
 def save_model(model, optimizer, filename):
