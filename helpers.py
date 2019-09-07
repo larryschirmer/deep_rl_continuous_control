@@ -7,21 +7,6 @@ from matplotlib import pyplot as plt
 def plot_losses(losses, filename='', plotName='Loss', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
-    plt.plot(np.arange(len(losses[-200:])), losses[-200:])
-    plt.axhline(y=0.0, color="#999999", linestyle='-')
-    plt.ylabel(plotName)
-    plt.xlabel("Training Steps")
-    if show:
-        plt.show()
-
-    if (filename):
-        plt.savefig("trimmed-{}".format(filename))
-    
-    plt.cla()
-    plt.close(fig)
-
-    fig = plt.figure()
-    fig.add_subplot(111)
     plt.plot(np.arange(len(losses)), losses)
     plt.axhline(y=0.0, color="#999999", linestyle='-')
     plt.ylabel(plotName)
@@ -32,28 +17,27 @@ def plot_losses(losses, filename='', plotName='Loss', show=False):
     if (filename):
         plt.savefig(filename)
     
-    plt.cla()
-    plt.close(fig)
+    if not show:
+        plt.cla()
+        plt.close(fig)
 
+    if not show:
+        fig = plt.figure()
+        fig.add_subplot(111)
+        plt.plot(np.arange(len(losses[-200:])), losses[-200:])
+        plt.axhline(y=0.0, color="#999999", linestyle='-')
+        plt.ylabel(plotName)
+        plt.xlabel("Training Steps")
 
-def plot_durations(durations, filename='', plotName='Duration', show=False):
-    fig = plt.figure()
-    fig.add_subplot(111)
-    plt.plot(np.arange(len(durations)), durations)
-    plt.ylabel(plotName)
-    plt.xlabel('Episode #')
-    if show:
-        plt.show()
-
-    if (filename):
-        plt.savefig(filename)
-
-    plt.cla()
-    plt.close(fig)
+        if (filename):
+            plt.savefig("trimmed-{}".format(filename))
+        
+        plt.cla()
+        plt.close(fig)
 
 
 def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
-
+  
     # staked_scores = np.stack(scores, axis=1)
     ave_stacked_scores = np.mean(scores, axis=1)
 
@@ -73,8 +57,9 @@ def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     if (filename):
         plt.savefig(filename)
 
-    plt.cla()
-    plt.close(fig)
+    if not show:
+        plt.cla()
+        plt.close(fig)
 
 
 def save_model(model, optimizer, filename):
@@ -119,7 +104,7 @@ def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_
         average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
 
-        if train and len(replay) >= params['batch_size'] and epoch % 100 == 0:
+        if train and len(replay) >= params['batch_size']:
             loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
 
             params['losses'].append(loss.item())
@@ -127,7 +112,7 @@ def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_
             params['critic_losses'].append(critic_loss.item())
 
             ave_scores = ' '.join(["{:.3f}".format(s) for s in average_score])
-            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.3f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
+            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.0f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
         
             replay = []
             early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
@@ -176,7 +161,7 @@ def run_episode(model, replay, params, epoch, train):
         logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
 
         action_list = [action0.detach().numpy().squeeze(), action1.detach().numpy().squeeze(), action2.detach().numpy().squeeze(), action3.detach().numpy().squeeze()]
-        action_list = np.stack(action_list)
+        action_list = np.stack(action_list, axis=1)
         # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)

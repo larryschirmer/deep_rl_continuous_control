@@ -9,16 +9,15 @@ from model import ActorCritic
 from helpers import save_model, worker, plot_losses, plot_scores
 
 # hyperparameters
-epochs = 5000
-annealing_epochs = 25000
-lr = 0.00007
+epochs = 40000
+lr = 0.00008
 gamma = 0.99
 clc = 0.1
 start_epsilon = 0.3
 end_epsilon = 0.1
-start_reward_leadup = 1000
-end_reward_leadup = 10
-batch_size = 2
+start_reward_leadup = 50
+end_reward_leadup = 5
+batch_size = 40
 
 input_dim = 33
 shared_hidden0 = 64
@@ -39,8 +38,6 @@ model_params = {
     'output_dim_actor': output_dim_actor,
     'output_dim_critic': output_dim_critic
 }
-
-model = ActorCritic(model_params)
 
 env = UnityEnvironment(file_name='Reacher_20.app')
 # get the default brain
@@ -77,10 +74,10 @@ model = ActorCritic(model_params)
 optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
 
 start = perf_counter()
-worker(model, params)
 
 if __name__ == '__main__':
     try:
+        worker(model, optimizer, params)
         save_model(model, optimizer, 'actor_critic.pt')
         plot_losses(params['losses'], 'loss.png')
         plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
