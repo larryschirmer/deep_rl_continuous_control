@@ -3,34 +3,32 @@ from unityagents import UnityEnvironment
 from time import perf_counter
 import pandas as pd
 import copy
+import torch
 
 from model import ActorCritic
-from helpers import save_model, worker
+from helpers import save_model, worker, plot_losses, plot_scores
 
 # hyperparameters
-epochs = 2600
-annealing_epochs = 400
-lr = 0.0001
-gamma = 0.999
+epochs = 40000
+lr = 0.00008
+gamma = 0.99
 clc = 0.1
-start_epsilon = 0.8
-end_epsilon = 0.2
-reward_leadup = 1000
-batch_size = 10
+start_epsilon = 0.3
+end_epsilon = 0.1
+start_reward_leadup = 50
+end_reward_leadup = 5
+batch_size = 40
 
 input_dim = 33
-shared_hidden0 = 128
-shared_hidden1 = 256
-shared_hidden2 = 128
-actor_hidden = 62
-critic_hidden = 62
+shared_hidden0 = 64
+shared_hidden1 = 128
+shared_hidden2 = 64
+actor_hidden = 32
+critic_hidden = 32
 output_dim_actor = 4
 output_dim_critic = 1
 
 model_params = {
-    'start_epsilon': start_epsilon,
-    'end_epsilon': end_epsilon,
-    'epochs': annealing_epochs,
     'input_dim': input_dim,
     'shared_hidden0': shared_hidden0,
     'shared_hidden1': shared_hidden1,
@@ -41,9 +39,7 @@ model_params = {
     'output_dim_critic': output_dim_critic
 }
 
-model = ActorCritic(model_params)
-
-env = UnityEnvironment(file_name='Reacher.app')
+env = UnityEnvironment(file_name='Reacher_20.app')
 # get the default brain
 brain_name = env.brain_names[0]
 
@@ -58,11 +54,14 @@ ave_scores = []
 params = {
     'env': env,
     'brain_name': brain_name,
-    'epochs': epochs + annealing_epochs,
+    'start_epsilon': start_epsilon,
+    'end_epsilon': end_epsilon,
+    'epochs': epochs,
     'lr': lr,
     'gamma': gamma,
     'clc': clc,
-    'reward_leadup': reward_leadup,
+    'start_reward_leadup': start_reward_leadup,
+    'end_reward_leadup': end_reward_leadup,
     'batch_size': batch_size,
     'losses': losses,
     'scores': scores,
@@ -71,8 +70,30 @@ params = {
     'critic_losses': critic_losses
 }
 
+model = ActorCritic(model_params)
+optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
+
 start = perf_counter()
-worker(model, params)
-save_model(model, 'actor_critic.pt')
-end = perf_counter()
-print((end - start))
+
+if __name__ == '__main__':
+    try:
+        worker(model, optimizer, params)
+        save_model(model, optimizer, 'actor_critic.pt')
+        plot_losses(params['losses'], 'loss.png')
+        plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
+        plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
+        plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
+        end = perf_counter()
+        print((end - start))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        save_model(model, optimizer, 'actor_critic.pt')
+        plot_losses(params['losses'], 'loss.png')
+        plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
+        plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
+        plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
+        end = perf_counter()
+        print((end - start))
+
+

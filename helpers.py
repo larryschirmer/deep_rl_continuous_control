@@ -7,21 +7,6 @@ from matplotlib import pyplot as plt
 def plot_losses(losses, filename='', plotName='Loss', show=False):
     fig = plt.figure()
     fig.add_subplot(111)
-    plt.plot(np.arange(len(losses[-200:])), losses[-200:])
-    plt.axhline(y=0.0, color="#999999", linestyle='-')
-    plt.ylabel(plotName)
-    plt.xlabel("Training Steps")
-    if show:
-        plt.show()
-
-    if (filename):
-        plt.savefig("trimmed-{}".format(filename))
-    
-    plt.cla()
-    plt.close(fig)
-
-    fig = plt.figure()
-    fig.add_subplot(111)
     plt.plot(np.arange(len(losses)), losses)
     plt.axhline(y=0.0, color="#999999", linestyle='-')
     plt.ylabel(plotName)
@@ -32,32 +17,38 @@ def plot_losses(losses, filename='', plotName='Loss', show=False):
     if (filename):
         plt.savefig(filename)
     
-    plt.cla()
-    plt.close(fig)
+    if not show:
+        plt.cla()
+        plt.close(fig)
 
+    if not show:
+        fig = plt.figure()
+        fig.add_subplot(111)
+        plt.plot(np.arange(len(losses[-200:])), losses[-200:])
+        plt.axhline(y=0.0, color="#999999", linestyle='-')
+        plt.ylabel(plotName)
+        plt.xlabel("Training Steps")
 
-def plot_durations(durations, filename='', plotName='Duration', show=False):
-    fig = plt.figure()
-    fig.add_subplot(111)
-    plt.plot(np.arange(len(durations)), durations)
-    plt.ylabel(plotName)
-    plt.xlabel('Episode #')
-    if show:
-        plt.show()
-
-    if (filename):
-        plt.savefig(filename)
-
-    plt.cla()
-    plt.close(fig)
+        if (filename):
+            plt.savefig("trimmed-{}".format(filename))
+        
+        plt.cla()
+        plt.close(fig)
 
 
 def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
+  
+    # staked_scores = np.stack(scores, axis=1)
+    ave_stacked_scores = np.mean(scores, axis=1)
+
+    # staked_ave_scores = np.stack(ave_scores, axis=1)
+    ave_staked_ave_scores = np.mean(ave_scores, axis=1)
+
     fig = plt.figure()
     fig.add_subplot(111)
-    plt.plot(np.arange(len(scores)), scores, color="#d9d9d9")
-    plt.plot(np.arange(len(ave_scores)), ave_scores, color="#333333")
-    plt.axhline(y=np.amax(ave_scores), color="#8a8a8a", linestyle='-')
+    plt.plot(np.arange(len(ave_stacked_scores)), ave_stacked_scores, color="#d9d9d9")
+    plt.plot(np.arange(len(ave_staked_ave_scores)), ave_staked_ave_scores, color="#333333")
+    plt.axhline(y=np.amax(ave_staked_ave_scores), color="#8a8a8a", linestyle='-')
     plt.ylabel(plotName)
     plt.xlabel('Episode #')
     if show:
@@ -66,13 +57,17 @@ def plot_scores(scores, ave_scores, filename='', plotName='Score', show=False):
     if (filename):
         plt.savefig(filename)
 
-    plt.cla()
-    plt.close(fig)
+    if not show:
+        plt.cla()
+        plt.close(fig)
 
 
-def save_model(model, filename):
+def save_model(model, optimizer, filename):
 
-    state = { 'state_dict': model.state_dict() }
+    state = {
+        'state_dict': model.state_dict(),
+        'optimizer': optimizer.state_dict()
+    }
     torch.save(state, '{}'.format(filename))
 
         
@@ -89,9 +84,8 @@ def load_model(model, filename, evalMode=True):
     return model
 
 
-def worker(model, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
+def worker(model, optimizer, params, train=True, early_stop_threshold=5., early_stop_target=30.):     # reset the environment
 
-    optimizer = torch.optim.Adam(lr=params['lr'], params=model.parameters())
     replay = []
 
     highest_score = 0
@@ -103,14 +97,12 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             print(early_stop_captures)
             break
 
-        values, logprobs, rewards, final_score = run_episode(model, replay, params, epoch, train)
+        final_score, epsilon, reward_leadup = run_episode(model, replay, params, epoch, train)
         params['scores'].append(final_score)
-        average_score = np.average(params['scores'][-100:])
+        stacked_scores = np.stack(params['scores'], axis=1)
+        sliced_scores = [agent_scores[-100:] for agent_scores in stacked_scores]
+        average_score = np.mean(sliced_scores, axis=1)
         params['ave_scores'].append(average_score)
-        
-        if train and final_score >= highest_score:
-            highest_score = final_score
-            save_model(model, 'actor_critic_checkpoint@highest.pt')
 
         if train and len(replay) >= params['batch_size']:
             loss, actor_loss, critic_loss = update_params(replay, optimizer, params)
@@ -119,68 +111,92 @@ def worker(model, params, train=True, early_stop_threshold=5., early_stop_target
             params['actor_losses'].append(actor_loss.item())
             params['critic_losses'].append(critic_loss.item())
 
-            scores = ' '.join(["{:.3f}".format(s[0]) for s in replay])
-            print("Epoch: {}, Ave Score: {:.4f}, Max: {:.4f}, replay: [{}], ".format(epoch + 1, average_score, np.amax(params['scores']), scores))
+            ave_scores = ' '.join(["{:.3f}".format(s) for s in average_score])
+            print("Epoch: {}, Epsilon: {:.3f}, Reward Leadup: {:.0f}, Ave Scores: [{}], Max: {:.4f}".format(epoch + 1, epsilon, reward_leadup, ave_scores, np.amax(params['scores'])))
         
             replay = []
-            if average_score >= early_stop_target:
+            early_stop_compare_array = np.full((len(average_score),), early_stop_target, dtype=float)
+            if np.all(np.greater(average_score, early_stop_compare_array)):
                 early_stop_captures.append(average_score)
-            
-            plot_losses(params['losses'], 'loss.png')
-            plot_losses(params['actor_losses'], filename='actor_loss.png', plotName="Actor Losses")
-            plot_losses(params['critic_losses'], filename='critic_loss.png', plotName="Critic Losses")
-            plot_scores(params['scores'], params['ave_scores'], filename='scores.png')
               
 
 
 def run_episode(model, replay, params, epoch, train):
 
     env_info = params['env'].reset(train_mode=train)[params['brain_name']]
-    state_ = env_info.vector_observations[0]        # get the current state
-    state = torch.from_numpy(state_).float()
-    score = np.zeros(1)                            # initialize the score
+    state_ = env_info.vector_observations
+    num_agents = len(env_info.agents)
+    states = torch.from_numpy(state_).float()
+    scores = np.zeros(num_agents)               # initialize the score
 
-    values, logprobs, rewards = [], [], []
+    values, logprobs, rewards, mean_entropy = [], [], [], torch.tensor(0.)
     done = False
 
+    epsilon = np.clip((params['end_epsilon'] - params['start_epsilon']) / (params['epochs'] - 0) * epoch + params['start_epsilon'], params['end_epsilon'], params['start_epsilon'])
     step_count = 0
     while (done == False):
         step_count += 1
-        policies, value = model(state, epoch)
-        [policies0_dist, policies1_dist, policies2_dist, policies3_dist] = policies
+        actor_mean, value = model(states)
+        actor_std = torch.tensor(epsilon)
 
-        action0 = torch.clamp(policies0_dist.sample(), min=-1, max=1)
-        action1 = torch.clamp(policies1_dist.sample(), min=-1, max=1)
-        action2 = torch.clamp(policies2_dist.sample(), min=-1, max=1)
-        action3 = torch.clamp(policies3_dist.sample(), min=-1, max=1)
-        logprob0 = policies0_dist.log_prob(action0)
-        logprob1 = policies1_dist.log_prob(action1)
-        logprob2 = policies2_dist.log_prob(action2)
-        logprob3 = policies3_dist.log_prob(action3)
+        actor_mean = actor_mean.t()
 
-        values.append(value)
-        logprobs.append([logprob0, logprob1, logprob2, logprob3])
+        action_dist0 = torch.distributions.Normal(actor_mean[0], actor_std)
+        action_dist1 = torch.distributions.Normal(actor_mean[1], actor_std)
+        action_dist2 = torch.distributions.Normal(actor_mean[2], actor_std)
+        action_dist3 = torch.distributions.Normal(actor_mean[3], actor_std)
 
-        action_list = np.array([action0.detach().numpy(), action1.detach(
-        ).numpy(), action2.detach().numpy(), action3.detach().numpy()])
+        mean_entropy = action_dist0.entropy().mean()
+
+        action0 = torch.clamp(action_dist0.sample(), min=-1, max=1)
+        action1 = torch.clamp(action_dist1.sample(), min=-1, max=1)
+        action2 = torch.clamp(action_dist2.sample(), min=-1, max=1)
+        action3 = torch.clamp(action_dist3.sample(), min=-1, max=1)
+        logprob0 = action_dist0.log_prob(action0)
+        logprob1 = action_dist1.log_prob(action1)
+        logprob2 = action_dist2.log_prob(action2)
+        logprob3 = action_dist3.log_prob(action3)
+
+        values.append(value.view(-1))
+        logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
+
+        action_list = [action0.detach().numpy().squeeze(), action1.detach().numpy().squeeze(), action2.detach().numpy().squeeze(), action3.detach().numpy().squeeze()]
+        action_list = np.stack(action_list, axis=1)
         # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)
-        state_ = env_info.vector_observations[0]
+        state_ = env_info.vector_observations
         # get reward (for each agent)
-        reward = env_info.rewards[0]
+        reward = env_info.rewards
         # see if episode finished
         done = env_info.local_done[0]
 
-        state = torch.from_numpy(state_).float()
+        states = torch.from_numpy(state_).float()
         rewards.append(reward)
+        scores += np.array(reward)
 
-    reward_sum = sum(rewards)
-    # Update replay buffer
-    actor_losses, critic_losses, losses = get_trjectory_loss(values, logprobs, rewards, params)
-    replay.append((sum(rewards), actor_losses, critic_losses, losses))
 
-    return values, logprobs, rewards, reward_sum
+    # Update replay buffer for each agent
+
+
+    stacked_logprob0 = torch.stack([a[0] for a in logprobs], dim=1)
+    stacked_logprob1 = torch.stack([a[1] for a in logprobs], dim=1)
+    stacked_logprob2 = torch.stack([a[2] for a in logprobs], dim=1)
+    stacked_logprob3 = torch.stack([a[3] for a in logprobs], dim=1)
+
+    stacked_values = torch.stack(values, dim=1)
+    stacked_rewards = np.stack(rewards, axis=1)
+
+    for agent_index in range(len(env_info.agents)):
+  
+        agent_values = stacked_values[agent_index]
+        agent_logprobs = [stacked_logprob0[agent_index], stacked_logprob1[agent_index], stacked_logprob2[agent_index], stacked_logprob3[agent_index]]
+        agent_rewards = stacked_rewards[agent_index]
+
+        actor_losses, critic_losses, losses, reward_leadup = get_trjectory_loss(agent_values, agent_logprobs, agent_rewards, mean_entropy, epoch, params)
+        replay.append((scores[agent_index], actor_losses, critic_losses, losses))
+
+    return scores, epsilon, reward_leadup
 
 
 def update_params(replay, optimizer, params):
@@ -228,19 +244,18 @@ def update_params(replay, optimizer, params):
     return loss_mean, actor_loss_sum, critic_loss
 
 
-def get_trjectory_loss(values, logprobs, rewards, params):
-    
-    logprob0 = [a[0] for a in logprobs]
-    logprob1 = [a[1] for a in logprobs]
-    logprob2 = [a[2] for a in logprobs]
-    logprob3 = [a[3] for a in logprobs]
+def get_trjectory_loss(values, logprobs, rewards, mean_entropy, epoch, params):
 
-    values = torch.stack(values).flip(dims=(0,)).view(-1)
-    rewards = torch.Tensor(rewards).flip(dims=(0,)).view(-1)
-    logprob0 = torch.stack(logprob0).flip(dims=(0,)).view(-1)
-    logprob1 = torch.stack(logprob1).flip(dims=(0,)).view(-1)
-    logprob2 = torch.stack(logprob2).flip(dims=(0,)).view(-1)
-    logprob3 = torch.stack(logprob3).flip(dims=(0,)).view(-1)
+    reward_leadup = np.clip((params['end_reward_leadup'] - params['start_reward_leadup']) / (params['epochs'] - 0) * epoch + params['start_reward_leadup'], params['end_reward_leadup'], params['start_reward_leadup'])
+
+    [logprob0, logprob1, logprob2, logprob3] = logprobs
+
+    values = values.flip(dims=(0,))
+    rewards = torch.Tensor(rewards).flip(dims=(0,))
+    logprob0 = logprob0.flip(dims=(0,))
+    logprob1 = logprob1.flip(dims=(0,))
+    logprob2 = logprob2.flip(dims=(0,))
+    logprob3 = logprob3.flip(dims=(0,))
 
     Returns = []
     total_return = torch.Tensor([0])
@@ -248,7 +263,7 @@ def get_trjectory_loss(values, logprobs, rewards, params):
 
     for reward_index in range(len(rewards)):
         if rewards[reward_index].item() > 0:
-            leadup = params['reward_leadup']
+            leadup = reward_leadup
         if leadup == 0:
             total_return = torch.Tensor([0])
         
@@ -273,12 +288,12 @@ def get_trjectory_loss(values, logprobs, rewards, params):
 
     critic_loss = critic_loss.sum()
 
-    loss0 = actor_loss0 + params['clc']*critic_loss
-    loss1 = actor_loss1 + params['clc']*critic_loss
-    loss2 = actor_loss2 + params['clc']*critic_loss
-    loss3 = actor_loss3 + params['clc']*critic_loss
+    loss0 = actor_loss0 + params['clc']*critic_loss + 0.01 * mean_entropy
+    loss1 = actor_loss1 + params['clc']*critic_loss + 0.01 * mean_entropy
+    loss2 = actor_loss2 + params['clc']*critic_loss + 0.01 * mean_entropy
+    loss3 = actor_loss3 + params['clc']*critic_loss + 0.01 * mean_entropy
 
     actor_losses = (actor_loss0, actor_loss1, actor_loss2, actor_loss3)
     losses = (loss0, loss1, loss2, loss3)
 
-    return actor_losses, critic_loss, losses
+    return actor_losses, critic_loss, losses, reward_leadup
