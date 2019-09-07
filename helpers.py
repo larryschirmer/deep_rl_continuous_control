@@ -176,7 +176,7 @@ def run_episode(model, replay, params, epoch, train):
         logprobs.append([logprob0.view(-1), logprob1.view(-1), logprob2.view(-1), logprob3.view(-1)])
 
         action_list = [action0.detach().numpy().squeeze(), action1.detach().numpy().squeeze(), action2.detach().numpy().squeeze(), action3.detach().numpy().squeeze()]
-        action_list = np.stack(action_list)
+        action_list = np.stack(action_list, axis=1)
         # send all actions to the environment
         env_info = params['env'].step(action_list)[params['brain_name']]
         # get next state (for each agent)
