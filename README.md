@@ -4,7 +4,7 @@
 
 ## What is this Project
 
-A deep reinforcement learning implementation of [Unity ML Agents Reacher](https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Learning-Environment-Examples.md#reacher) environment. The Reacher environment generates an arm with 3 degree-of-freedom shoulder and elbow. The goal of the arm to bend the shoulder and elbow so that the fist of the arm is inside a bubble that is floating around the arm anchor. This project uses a feed forward with a natural distribution output for each control. The agent learns to associate the mean of the distribution with the correct output for each state.
+A deep reinforcement learning implementation of [Unity ML Agents Reacher](https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Learning-Environment-Examples.md#reacher) environment. The Reacher environment generates an arm with a 3 degree-of-freedom shoulder and elbow. The goal of the arm is to bend the shoulder and elbow so that the fist of the arm is inside a bubble that is floating around the arm anchor. This project uses a feedforward network with a natural distribution output for each control. The agent learns to associate the mean of the distribution with the correct output for each state.
 
 ## How to Install
 
@@ -44,9 +44,7 @@ After installing this project's dependencies, launching `main.py` will begin tra
 python main.py
 ```
 
-This file launches the unity environment and begin posting to the console training updates every 100 epochs.
-
-In its current configuration, this model takes about **36 hours** to train on a 6-core macmini.
+This file launches the unity environment with twenty arms and begin posting to the console training updates every 100 epochs. In its current configuration, this model takes about **36 hours** to train on a 6-core macmini.
 
 If you would like to run the solved model checkpoint that I have provided, launch a jupyter notebook environment:
 
@@ -58,9 +56,9 @@ and open `Reacher.ipynb`
 
 ## Problem/Solution
 
-Control environment output needs come in two types: discrete and continuous. Discrete environments such as grid world require an agent to make decision from an know set of actions (up, down, left, right). For control environments such as driving or manufacturing equipment, it is necessary to have continuous outputs. These control have a range where they can act and an agent needs to be able to serve any value in the range. 
+Control environment output needs come in two types: discrete and continuous. Discrete environments such as grid world require an agent to make decision from an know set of actions (up, down, left, right). For control environments such as driving or manufacturing equipment, it is necessary to have continuous outputs. These controls have a range where they can act and an agent needs to be able to serve any value in the range. 
 
-For example, in an autonomous driving car, both discrete and continuous agents could be applied. A discrete agent would be able to turn the wheels all the way to the left or right (some other amount the model was trained to output). However, a continuous agent can turn the wheels at any amount from left to right. With continuous control deep learning, an agent is trained to output the correct amount of turning motion with some amount of standard deviation.
+For example, in an autonomous driving car, both discrete and continuous agents could be applied. A discrete agent would be able to turn the wheels all the way to the left or right (or some other amount the model was trained to output). However, a continuous agent can turn the wheels at any amount from left to right. With continuous control deep learning, an agent is trained to output the correct amount of turning motion with some amount of standard deviation.
 
 ## Important Files
 
