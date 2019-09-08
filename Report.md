@@ -1,5 +1,7 @@
 # Solved Model Training and Evaluation
 
+This project solves version 2 for the Reacher environment with 20 agents using A2C. The model achieved a moving average score over 100 episodes of +30 for each agent in 25490 episodes.
+
 The base code for this project comes from the cart pole implementation in Chapter 5 of [Deep Reinforcement Learning in Action](https://www.manning.com/books/deep-reinforcement-learning-in-action). The original implementation uses REINFORCE and a discrete distribution to predict which action (left or right) the cart should make to keep the pole upright. 
 
 These two articles also helped shape my understanding of the Actor Critic algorithm

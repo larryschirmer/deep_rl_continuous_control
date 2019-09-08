@@ -68,7 +68,7 @@ For example, in an autonomous driving car, both discrete and continuous agents c
 - `actor_critic.pt`: trained model checkpoint
 - `main.py`: python file used to develop and train network
 - `helpers.py`: collection of functions used to train, test, and monitor model
-- `model.py`: functions to return new model, optimizer, and loss function
+- `model.py`: class to return new model
 - `scores.png`: a plot of scores and average scores from the 20 agents averaged together from each episode
     - light gray: score from each episode. Example for two agents, `[ 12.1, 13.6 ] -> 12.85`
     - black: Average over 100 episodes. Example for two agent, `[ 12.7, 12.9] -> 12.8`
