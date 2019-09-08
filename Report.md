@@ -34,7 +34,7 @@ def forward(self, x):
 
 The first tail outputs the mean of the distribution between -1 and 1. The agent uses this output to predict where best to position the arm. The mean range is handled by the `tanh` activation function. The second tail outputs the predicted value of the state. The agent uses this value to predict how valuable the action is at that time step. This is useful for understanding the difference between traveling between rewards and actions that result in reward.
 
-The environment is reset at the start of each episode and new training loop begins until the environment outputs that one of the arm agents is done.
+The environment is reset at the start of each episode and a new training loop begins until the environment signals that one of the arm agents is done.
 
 ```python
 # helpers.py Line 124
@@ -195,7 +195,7 @@ for reward_index in range(len(rewards)):
     leadup = leadup - 1 if leadup > 0 else 0
 ```
 
-I understand concept of GAE (Generalized Advantage Estimation). This technique changes how far ahead the agent can look ahead in terms of future reward. I, however, had issues implementing the technique so I ended up adding a simpler variation of the technique I called `Reward Leadup`. What Reward Leadup does is only reward actions closer to where they happen. This solves the issue where random motion hundreds of timesteps away from when a reward occurs confuses the model into thinking that random usless motion somehow contributed to that reward occuring.
+I understand the concept of GAE (Generalized Advantage Estimation). This technique changes how far ahead the agent can look ahead in terms of future reward. I, however, had issues implementing the technique so I ended up adding a simpler variation of the technique I called `Reward Leadup`. What Reward Leadup does is only reward actions closer to where they happen. This solves the issue where random motion hundreds of timesteps away from when a reward occurs confuses the model into thinking that random useless motion somehow contributed to that reward occurring.
 
 The trick is that after the rewards are reversed, if there is not a reward during the leadup window then the reward is not cumulative. The result of this change makes future reward (from the perspective of the agent) much higher right when rewards occurs, then reinforcing the actions that lead to the reward.
 
@@ -253,7 +253,7 @@ def update_params(replay, optimizer, params):
 
 ## Training Evaluation
 
-The model was trained for **25490 episodes** and achieved a moving average reward over 100 episodes of +30 for all 20 agents 5 times. The model was set to go for 40000 epochs but stopped early after achieving target accuracy.
+The model was trained for **25490 episodes** and achieved a moving average reward over 100 episodes of +30 for all 20 agents 5 times (version 2). The model was set to go for 40000 epochs but stopped early after achieving target accuracy.
 
 ```python
 # early stopping loop break
@@ -290,8 +290,10 @@ output_dim_critic = 1
 **Average Score and Scores each Episode**
 ![](https://github.com/larryschirmer/deep_rl_continuous_control/raw/macbook/scores.png)
 
-- Black: average of the moving average of each agent at each episode
-    - Each episode an average for each agent over 100 episodes is calculated. To represent these average scores, they are averaged together into a single value and plotted at the black line. This single average value should NOT be confused for the target accuracy of the model which is an average value of +30 for every agent, and not the average of the average of the agents.
+- Black: Average of the moving average score of each agent at each episode. 
+    - Each episode an average for each agent over 100 episodes is calculated. To represent these average scores, they are averaged together into a single value and plotted as the black line. This single average value should NOT be confused for the target accuracy of the model which is an average value of +30 for every agent, and not the average of the average score of the agents.
+- Gray: Average score of each agent at each episode
+    - Each episode the raw score for each agent is reported. All 20 of these scores is averaged into a single value and plotted behind the black line as the gray line.
 
 **Model Training Loss**
 ![](https://github.com/larryschirmer/deep_rl_continuous_control/raw/macbook/loss.png)
@@ -301,3 +303,15 @@ output_dim_critic = 1
 
 **Critic Loss**
 ![](https://github.com/larryschirmer/deep_rl_continuous_control/raw/macbook/actor_loss.png)
+
+## Future Work
+
+In the future I could improve this project by
+
+### Implementing GAE and PPO
+
+In this project, I implemented my own variation of gae that had a fixed reward look ahead window. GAE would improve on my variation by fading the rewards with a discounting factor. PPO would smooth the training process by stopping the networking parameters from changing a lot during back propagation. This is an issue with reinforcement learning because the training data is generated each episode and has high variability.
+
+### Making the training Asynchronous
+
+This projects takes over a day to train in its current configuration. A small but substantial amount of time each loop is spent training (back propagating the loss across) the network. By offloading this process to a worker, the network could train faster without having to change anything else about network (learning rate, state-of-the-art methods).
